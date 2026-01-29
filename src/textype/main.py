@@ -237,6 +237,7 @@ class TypingTutor(App):
 
     def check_completion(self) -> None:
         if len(self.typed_text) == len(self.target_text):
+            self.evaluate_drill()
             if self.show_stats_pref:
                 self.show_final_stats()
             else:
@@ -247,6 +248,7 @@ class TypingTutor(App):
                 )
 
     def show_final_stats(self) -> None:
+        """Only handles the UI modal display."""
         elapsed = (time.time() - self.start_time) / 60
         wpm = round((len(self.typed_text) / 5) / elapsed)
         acc = round(
@@ -257,19 +259,7 @@ class TypingTutor(App):
             * 100
         )
 
-        # Check if requirements are met
-        lesson = config.LESSONS[self.profile.current_lesson_index]
-        passed = acc >= lesson["target_acc"] and wpm >= lesson["target_wpm"]
-
-        if passed:
-            self.profile.current_lesson_index += 1
-            self.notify(f"LEVEL UP: {lesson['name']} Cleared!")
-        else:
-            self.notify("Requirements not met. Try again!", severity="warning")
-
-        self.profile.save()
-
-        # Pass the 'passed' status to the Stats Screen (update your StatsScreen to show this!)
+        # We don't call evaluate_drill here anymore because it ran in check_completion
         self.push_screen(
             StatsScreen(wpm, acc, self.total_errors), lambda _: self.reset_drill()
         )
@@ -303,6 +293,43 @@ class TypingTutor(App):
                 word = "".join(random.choices(clean_keys, k=4))
                 words.append(word)
             return " ".join(words).upper()
+
+    def evaluate_drill(self) -> bool:
+        """Determines if the user passed the requirements and increments lesson index."""
+        if not self.start_time:
+            return False
+
+        elapsed = (time.time() - self.start_time) / 60
+        wpm = round((len(self.typed_text) / 5) / elapsed)
+        acc = round(
+            (
+                (len(self.typed_text) - self.total_errors)
+                / max(1, len(self.typed_text) + self.total_errors)
+            )
+            * 100
+        )
+
+        # Check requirements from config
+        lesson = config.LESSONS[self.profile.current_lesson_index]
+        passed = acc >= lesson["target_acc"] and wpm >= lesson["target_wpm"]
+
+        if passed:
+            self.profile.current_lesson_index += 1
+            # Prevent overflow if they finish all lessons
+            if self.profile.current_lesson_index >= len(config.LESSONS):
+                self.profile.current_lesson_index = len(config.LESSONS) - 1
+
+            self.notify(f"LEVEL UP: {lesson['name']} Cleared!")
+        else:
+            self.notify("Requirements not met. Lesson will repeat.", severity="warning")
+
+        # Update profile records and save
+        if wpm > self.profile.wpm_record:
+            self.profile.wpm_record = wpm
+        self.profile.total_drills += 1
+        self.profile.save()
+
+        return passed
 
 
 if __name__ == "__main__":
