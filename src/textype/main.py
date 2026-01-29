@@ -8,7 +8,7 @@ from textual.containers import Vertical, Horizontal
 from textual.binding import Binding
 
 import config
-from widgets import FingerColumn
+from widgets import FingerColumn, StatsScreen
 
 class TypingTutor(App):
     CSS_PATH = "styles.tcss"
@@ -17,6 +17,7 @@ class TypingTutor(App):
     BINDINGS = [
         Binding("f1", "toggle_keyboard", "Toggle Keys"),
         Binding("f2", "toggle_fingers", "Toggle Fingers"),
+        Binding("f3", "toggle_stats_pref", "Toggle Stats"),
         Binding("escape", "quit", "Quit"),
     ]
 
@@ -26,6 +27,7 @@ class TypingTutor(App):
         self.typed_text = ""
         self.start_time = None
         self.total_errors = 0
+        self.show_stats_pref = config.SHOW_STATS_ON_END
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -68,7 +70,20 @@ class TypingTutor(App):
     def action_toggle_fingers(self) -> None:
         self.query_one("#finger-guide-wrapper").toggle_class("hidden")
 
+    def action_toggle_stats_pref(self) -> None:
+        """Toggle whether stats show automatically at the end."""
+        self.show_stats_pref = not self.show_stats_pref
+        status = "ON" if self.show_stats_pref else "OFF"
+        self.notify(f"Auto-Stats: {status}")
+
     def on_key(self, event) -> None:
+        if len(self.typed_text) >= len(self.target_text):
+            if event.key == "enter":
+                self.reset_drill()
+            elif event.key == "s": # Manual trigger for stats
+                self.show_final_stats()
+            return
+
         char = " " if event.key == "space" else event.key
 
         if not self.start_time and len(char) == 1:
@@ -88,7 +103,8 @@ class TypingTutor(App):
                         self.typed_text += char
 
         self.refresh_display()
-
+        self.check_completion()
+    
     def refresh_display(self) -> None:
         elapsed = (time.time() - self.start_time) / 60 if self.start_time else 0
         wpm = round((len(self.typed_text) / 5) / elapsed) if elapsed > 0 else 0
@@ -127,6 +143,34 @@ class TypingTutor(App):
                     self.query_one(f"#{fid}").add_class("active-finger")
                 except:
                     pass
+
+    def reset_drill(self) -> None:
+        """Resets the state for a new typing drill."""
+        self.target_text = random.choice(config.SENTENCES)
+        self.typed_text = ""
+        self.start_time = None
+        self.total_errors = 0
+        self.refresh_display()
+
+    def check_completion(self) -> None:
+        if len(self.typed_text) == len(self.target_text):
+            if self.show_stats_pref:
+                self.show_final_stats()
+            else:
+                # Prompt user in the typing area
+                self.query_one("#typing-area").update(
+                    f"\n[#9ece6a]{self.target_text}[/]\n\n"
+                    "[reverse] PRESS ENTER FOR NEXT [/]  [#7aa2f7](OR 'S' FOR STATS)[/]"
+                )
+    def show_final_stats(self) -> None:
+         """Calculates metrics and pushes the StatsScreen."""
+         elapsed = (time.time() - self.start_time) / 60
+         wpm = round((len(self.typed_text) / 5) / elapsed)
+         acc = round(((len(self.typed_text) - self.total_errors) 
+                     / max(1, len(self.typed_text) + self.total_errors)) * 100)
+
+         self.push_screen(StatsScreen(wpm, acc, self.total_errors), 
+                          lambda next: self.reset_drill() if next else None)
 
 if __name__ == "__main__":
     TypingTutor().run()

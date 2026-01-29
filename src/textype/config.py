@@ -1,6 +1,9 @@
+from collections import namedtuple
+
 SHOW_QWERTY = True 
 SHOW_FINGERS = True
 HARD_MODE = True
+SHOW_STATS_ON_END = True
 
 SENTENCES = [
     "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG",

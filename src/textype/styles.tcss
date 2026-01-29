@@ -91,3 +91,30 @@
 .hidden {
     display: none;
 }
+#stats-modal {
+    width: 40;
+    height: auto;
+    background: #24283b;
+    border: thick #7aa2f7;
+    padding: 1 2;
+}
+
+#stats-title {
+    width: 100%;
+    content-align: center middle;
+    text-style: bold;
+    color: #bb9af7;
+    margin-bottom: 1;
+}
+
+.stat-line {
+    width: 100%;
+    margin-bottom: 1;
+    content-align: center middle;
+    color: #c0caf5;
+}
+
+#next-button {
+    width: 100%;
+    margin-top: 1;
+}
