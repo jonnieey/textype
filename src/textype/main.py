@@ -7,16 +7,16 @@ from textual.widgets import Header, Footer, Static
 from textual.containers import Vertical, Horizontal
 from textual.binding import Binding
 
-# Import our modules
 import config
 from widgets import FingerColumn
 
 class TypingTutor(App):
-    # Link the external CSS file
     CSS_PATH = "styles.tcss"
     
+    # Added F2 binding for fingers
     BINDINGS = [
         Binding("f1", "toggle_keyboard", "Toggle Keys"),
+        Binding("f2", "toggle_fingers", "Toggle Fingers"),
         Binding("escape", "quit", "Quit"),
     ]
 
@@ -33,8 +33,9 @@ class TypingTutor(App):
             yield Static("", id="stats-bar")
             yield Static("", id="typing-area")
 
-            # Keyboard UI
-            with Vertical(id="keyboard-section"):
+            # Keyboard UI with initial visibility check
+            kb_classes = "" if config.SHOW_QWERTY else "hidden"
+            with Vertical(id="keyboard-section", classes=kb_classes):
                 rows = [
                     ["Q","W","E","R","T","Y","U","I","O","P"],
                     ["A","S","D","F","G","H","J","K","L",";"],
@@ -48,8 +49,9 @@ class TypingTutor(App):
                 with Horizontal(classes="key-row"):
                     yield Static("SPACE", id="key-space", classes="key")
 
-            # Finger Guide UI
-            with Horizontal(id="finger-guide-wrapper"):
+            # Finger Guide UI with initial visibility check
+            fg_classes = "" if config.SHOW_FINGERS else "hidden"
+            with Horizontal(id="finger-guide-wrapper", classes=fg_classes):
                 with Horizontal(id="finger-guide"):
                     for fid, h in config.FINGER_HEIGHTS.items():
                         yield FingerColumn(fid, h)
@@ -59,8 +61,12 @@ class TypingTutor(App):
     def on_mount(self) -> None:
         self.refresh_display()
 
+    # Toggles for UI elements
     def action_toggle_keyboard(self) -> None:
         self.query_one("#keyboard-section").toggle_class("hidden")
+
+    def action_toggle_fingers(self) -> None:
+        self.query_one("#finger-guide-wrapper").toggle_class("hidden")
 
     def on_key(self, event) -> None:
         char = " " if event.key == "space" else event.key
@@ -84,18 +90,15 @@ class TypingTutor(App):
         self.refresh_display()
 
     def refresh_display(self) -> None:
-        # Calculate stats
         elapsed = (time.time() - self.start_time) / 60 if self.start_time else 0
         wpm = round((len(self.typed_text) / 5) / elapsed) if elapsed > 0 else 0
         acc = round(((len(self.typed_text) - self.total_errors)
                     / max(1, len(self.typed_text) + self.total_errors)) * 100)
 
-        # Update Stats
         self.query_one("#stats-bar").update(
             f"WPM: {wpm} | ACCURACY: {acc}% | ERRORS: {self.total_errors}"
         )
 
-        # Update Typing Text (Rich highlighting)
         rich = ""
         for i, c in enumerate(self.target_text):
             if i < len(self.typed_text):
@@ -106,11 +109,9 @@ class TypingTutor(App):
                 rich += c
         self.query_one("#typing-area").update(f"\n\n{rich}")
 
-        # Reset highlights
         self.query(".key").remove_class("active-key")
         self.query(".finger-body").remove_class("active-finger")
 
-        # Set next key/finger highlights
         if len(self.typed_text) < len(self.target_text):
             nxt = self.target_text[len(self.typed_text)]
             kid = f"#key-{'space' if nxt == ' ' else config.ID_MAP.get(nxt, nxt.lower())}"
@@ -122,7 +123,10 @@ class TypingTutor(App):
 
             fid = config.FINGER_MAP.get(nxt)
             if fid:
-                self.query_one(f"#{fid}").add_class("active-finger")
+                try:
+                    self.query_one(f"#{fid}").add_class("active-finger")
+                except:
+                    pass
 
 if __name__ == "__main__":
     TypingTutor().run()

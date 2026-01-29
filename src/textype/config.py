@@ -1,3 +1,5 @@
+SHOW_QWERTY = True 
+SHOW_FINGERS = True
 HARD_MODE = True
 
 SENTENCES = [
