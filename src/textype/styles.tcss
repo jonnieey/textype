@@ -1,0 +1,93 @@
+/* styles.tcss */
+
+#main-container {
+    height: 100%;
+    background: #1a1b26;
+}
+
+#stats-bar {
+    background: #24283b;
+    color: #7aa2f7;
+    content-align: center middle;
+    text-style: bold;
+}
+
+#typing-area {
+    height: 1fr;
+    content-align: center middle;
+    margin: 1 4;
+    background: #1f2335;
+    border: heavy #414868;
+    color: #c0caf5;
+    text-style: bold;
+}
+
+#keyboard-section {
+    height: auto;
+    align: center middle;
+    margin-bottom: 1;
+}
+
+.key-row {
+    height: 1;
+    align: center middle;
+}
+
+.key {
+    width: 4;
+    height: 1;
+    background: #24283b;
+    color: #565f89;
+    margin: 0 1;
+    content-align: center middle;
+}
+
+#key-space {
+    width: 30;
+}
+
+#finger-guide-wrapper {
+    height: 10;
+    align: center bottom;
+}
+
+#finger-guide {
+    height: 100%;
+    align: center bottom;
+}
+
+.finger-column {
+    width: 8;
+    height: 100%;
+    align: center bottom;
+}
+
+.finger-body {
+    width: 6;
+    background: #24283b;
+    border-top: solid #414868;
+    content-align: center middle;
+    color: #565f89;
+    margin: 0 1;
+}
+
+.active-key {
+    background: #7aa2f7;
+    color: #15161e;
+    text-style: bold;
+}
+
+.active-finger {
+    background: #bb9af7;
+    border-top: solid #ffffff;
+    color: #ffffff;
+    text-style: bold;
+}
+
+#THUMB.active-finger {
+    background: #9ece6a;
+}
+
+.hidden {
+    display: none;
+}

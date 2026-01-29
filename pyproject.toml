@@ -1,0 +1,68 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "textype"
+dynamic = ["version"]
+description = ''
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "jonnieey", email = "johnjahi55@gmail.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "textual[syntax]"
+]
+
+[tool.hatch.envs.dev]
+dependencies = [
+  "textual-dev",
+  "textual[syntax]",
+]
+[project.urls]
+Documentation = "https://github.com/jonnieey/textype#readme"
+Issues = "https://github.com/jonnieey/textype/issues"
+Source = "https://github.com/jonnieey/textype"
+
+[tool.hatch.version]
+path = "src/textype/__about__.py"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/textype tests}"
+
+[tool.coverage.run]
+source_pkgs = ["textype", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/textype/__about__.py",
+]
+
+[tool.coverage.paths]
+textype = ["src/textype", "*/textype/src/textype"]
+tests = ["tests", "*/textype/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
