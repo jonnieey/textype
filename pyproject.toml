@@ -32,6 +32,7 @@ dependencies = [
 dependencies = [
   "textual-dev",
   "textual[syntax]",
+  "pre-commit",
 ]
 [project.urls]
 Documentation = "https://github.com/jonnieey/textype#readme"
