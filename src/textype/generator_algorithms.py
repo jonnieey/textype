@@ -5,6 +5,7 @@ LAYOUT = {
     "home": {"left": "ASDF", "right": "JKL;"},
     "top": {"left": "QWER", "right": "UIOP"},
     "bottom": {"left": "ZXCV", "right": "NM,."},
+    "numbers": {"left": "12345", "right": "67890"},
 }
 
 
@@ -60,6 +61,7 @@ def pseudo_words(row_keys, count=10):
 
 
 if __name__ == "__main__":
+    # for row_name, row_keys in LAYOUT.items():
     row_keys = LAYOUT["home"]
     print(single_key_repeat(row_keys["left"], reps=3))
     print(single_key_repeat(row_keys["right"], reps=3))

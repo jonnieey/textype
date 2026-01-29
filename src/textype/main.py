@@ -281,7 +281,8 @@ class TypingTutor(App):
     def generate_lesson_text(self) -> str:
         lesson = config.LESSONS[self.profile.current_lesson_index]
         algo_type = lesson.get("algo")
-        row_data = algos.LAYOUT.get(lesson.get("row", "home"))
+        row_key = lesson.get("row", "home")
+        row_data = algos.LAYOUT.get(row_key)
 
         dispatch = {
             "repeat": lambda: algos.single_key_repeat(
@@ -295,10 +296,14 @@ class TypingTutor(App):
         }
 
         # Execute the mapped function or fallback to a basic scramble
-        generator = dispatch.get(
-            algo_type, lambda: " ".join(random.choices(row_data["left"], k=10))
-        )
-        return generator().upper()
+        generator = dispatch.get(algo_type)
+        if generator:
+            return generator().upper()
+
+        all_keys = row_data["left"] + row_data["right"]
+        return " ".join(
+            ["".join(random.choices(all_keys, k=4)) for _ in range(10)]
+        ).upper()
 
     def evaluate_drill(self) -> bool:
         """Determines if the user passed the requirements and increments lesson index."""
