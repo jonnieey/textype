@@ -43,19 +43,32 @@ class TypingTutor(App):
             # Keyboard UI with initial visibility check
             kb_classes = "" if config.SHOW_QWERTY else "hidden"
             with Vertical(id="keyboard-section", classes=kb_classes):
-                rows = [
-                    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-                    ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";"],
-                    ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"],
-                ]
-                for r in rows:
-                    with Horizontal(classes="key-row"):
-                        for c in r:
-                            yield Static(
-                                c,
-                                classes="key",
-                                id=f"key-{config.ID_MAP.get(c, c.lower())}",
-                            )
+                # Row 1
+                with Horizontal(classes="key-row"):
+                    for c in ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"]:
+                        yield Static(
+                            c,
+                            classes="key",
+                            id=f"key-{config.ID_MAP.get(c, c.lower())}",
+                        )
+                # Row 2
+                with Horizontal(classes="key-row"):
+                    for c in ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";"]:
+                        yield Static(
+                            c,
+                            classes="key",
+                            id=f"key-{config.ID_MAP.get(c, c.lower())}",
+                        )
+                # Row 3
+                with Horizontal(classes="key-row"):
+                    yield Static("SHIFT", classes="key special-key", id="key-shift-l")
+                    for c in ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"]:
+                        yield Static(
+                            c,
+                            classes="key",
+                            id=f"key-{config.ID_MAP.get(c, c.lower())}",
+                        )
+                    yield Static("SHIFT", classes="key special-key", id="key-shift-r")
 
                 with Horizontal(classes="key-row"):
                     yield Static("SPACE", id="key-space", classes="key")
@@ -143,7 +156,6 @@ class TypingTutor(App):
         if event.key == "backspace":
             self.typed_text = self.typed_text[:-1]
         elif char and len(char) == 1:
-            char = char.upper()
             idx = len(self.typed_text)
             if idx < len(self.target_text):
                 if char == self.target_text[idx]:
@@ -190,16 +202,30 @@ class TypingTutor(App):
 
         if len(self.typed_text) < len(self.target_text):
             nxt = self.target_text[len(self.typed_text)]
-            kid = (
-                f"#key-{'space' if nxt == ' ' else config.ID_MAP.get(nxt, nxt.lower())}"
-            )
+
+            # Determine target key ID
+            # Map symbol to ID or use char.lower()
+            key_lookup = nxt.lower()
+            kid_suffix = config.ID_MAP.get(key_lookup, key_lookup)
+            kid = f"#key-{kid_suffix}"
 
             try:
                 self.query_one(kid).add_class("active-key")
             except Exception:
                 pass
 
-            fid = config.FINGER_MAP.get(nxt)
+            # Determine Finger
+            fid = config.FINGER_MAP.get(nxt.upper())
+
+            # Shift Logic
+            if nxt.isupper() and fid:
+                shift_id = "#key-shift-r" if fid.startswith("L") else "#key-shift-l"
+                try:
+                    self.query_one(shift_id).add_class("active-key")
+                except Exception:
+                    pass
+
+            # Highlight Finger
             if fid:
                 try:
                     self.query_one(f"#{fid}").add_class("active-finger")
@@ -298,12 +324,10 @@ class TypingTutor(App):
         # Execute the mapped function or fallback to a basic scramble
         generator = dispatch.get(algo_type)
         if generator:
-            return generator().upper()
+            return generator()
 
         all_keys = row_data["left"] + row_data["right"]
-        return " ".join(
-            ["".join(random.choices(all_keys, k=4)) for _ in range(10)]
-        ).upper()
+        return " ".join(["".join(random.choices(all_keys, k=4)) for _ in range(10)])
 
     def evaluate_drill(self) -> bool:
         """Determines if the user passed the requirements and increments lesson index."""

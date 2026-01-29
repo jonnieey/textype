@@ -46,6 +46,10 @@
     width: 30;
 }
 
+#key-shift-l, #key-shift-r {
+    width: 8;
+}
+
 #finger-guide-wrapper {
     height: 10;
     align: center bottom;

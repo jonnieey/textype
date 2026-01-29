@@ -51,10 +51,10 @@ LESSONS = [
 ]
 
 SENTENCES = [
-    "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG",
-    "PRACTICE UNTIL THE MOTIONS BECOME SECOND NATURE",
-    "RELIANCE ON SIGHT IS THE ENEMY OF SPEED",
-    "FLUIDITY MATTERS MORE THAN RAW VELOCITY",
+    "The quick brown fox jumps over the lazy dog",
+    "Practice until the motions become second nature",
+    "Reliance on sight is the enemy of speed",
+    "Fluidity matters more than raw velocity",
 ]
 
 ID_MAP = {

@@ -2,9 +2,9 @@ import random
 
 # Hand definitions based on standard QWERTY
 LAYOUT = {
-    "home": {"left": "ASDF", "right": "JKL;"},
-    "top": {"left": "QWER", "right": "UIOP"},
-    "bottom": {"left": "ZXCV", "right": "NM,."},
+    "home": {"left": "asdf", "right": "jkl;"},
+    "top": {"left": "qwer", "right": "uiop"},
+    "bottom": {"left": "zxcv", "right": "nm,."},
     "numbers": {"left": "12345", "right": "67890"},
 }
 
