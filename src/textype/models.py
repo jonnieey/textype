@@ -10,6 +10,7 @@ PROFILES_DIR = "profiles"
 @dataclass
 class UserProfile:
     name: str
+    current_lesson_index: int = 0
     wpm_record: int = 0
     total_drills: int = 0
     level: int = 1

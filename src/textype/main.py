@@ -31,6 +31,7 @@ class TypingTutor(App):
         self.start_time = None
         self.total_errors = 0
         self.show_stats_pref = config.SHOW_STATS_ON_END
+        self.profile = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -118,6 +119,9 @@ class TypingTutor(App):
         self.exit()
 
     def on_key(self, event) -> None:
+        if self.profile is None:
+            return
+
         if len(self.typed_text) >= len(self.target_text):
             if event.key == "enter":
                 self.reset_drill()
@@ -125,14 +129,19 @@ class TypingTutor(App):
                 self.show_final_stats()
             return
 
-        char = " " if event.key == "space" else event.key
+        if event.key == "space":
+            char = " "
+        elif event.is_printable:
+            char = event.character
+        else:
+            char = None
 
-        if not self.start_time and len(char) == 1:
+        if not self.start_time and char and len(char) == 1:
             self.start_time = time.time()
 
         if event.key == "backspace":
             self.typed_text = self.typed_text[:-1]
-        elif len(char) == 1:
+        elif char and len(char) == 1:
             char = char.upper()
             idx = len(self.typed_text)
             if idx < len(self.target_text):
@@ -196,9 +205,31 @@ class TypingTutor(App):
                 except Exception:
                     pass
 
+        if not self.profile:
+            self.query_one("#stats-bar").update(
+                f"WPM: {wpm} | ACCURACY: {acc}% | [bold red]AWAITING PROFILE...[/]"
+            )
+        else:
+            # Now it is safe to access the profile
+            lesson_idx = self.profile.current_lesson_index
+
+            # Ensure index is within LESSONS bounds to prevent IndexErrors
+            if lesson_idx < len(config.LESSONS):
+                lesson_name = config.LESSONS[lesson_idx]["name"]
+            else:
+                lesson_name = "Master Mode (Free Typing)"
+
+            self.query_one("#stats-bar").update(
+                f"LESSON: {lesson_name} | WPM: {wpm} | ACCURACY: {acc}%"
+            )
+
     def reset_drill(self) -> None:
-        """Resets the state for a new typing drill."""
-        self.target_text = random.choice(config.SENTENCES)
+        """Selects text based on the current lesson stage."""
+        if self.profile:
+            self.target_text = self.generate_lesson_text()
+        else:
+            self.target_text = random.choice(config.SENTENCES)
+
         self.typed_text = ""
         self.start_time = None
         self.total_errors = 0
@@ -216,7 +247,6 @@ class TypingTutor(App):
                 )
 
     def show_final_stats(self) -> None:
-        """Calculates metrics and pushes the StatsScreen."""
         elapsed = (time.time() - self.start_time) / 60
         wpm = round((len(self.typed_text) / 5) / elapsed)
         acc = round(
@@ -227,14 +257,21 @@ class TypingTutor(App):
             * 100
         )
 
-        self.profile.total_drills += 1
-        if wpm > self.profile.wpm_record:
-            self.profile.wpm_record = wpm
+        # Check if requirements are met
+        lesson = config.LESSONS[self.profile.current_lesson_index]
+        passed = acc >= lesson["target_acc"] and wpm >= lesson["target_wpm"]
+
+        if passed:
+            self.profile.current_lesson_index += 1
+            self.notify(f"LEVEL UP: {lesson['name']} Cleared!")
+        else:
+            self.notify("Requirements not met. Try again!", severity="warning")
+
         self.profile.save()
 
+        # Pass the 'passed' status to the Stats Screen (update your StatsScreen to show this!)
         self.push_screen(
-            StatsScreen(wpm, acc, self.total_errors),
-            lambda next: self.reset_drill() if next else None,
+            StatsScreen(wpm, acc, self.total_errors), lambda _: self.reset_drill()
         )
 
     def apply_profile_config(self):
@@ -249,6 +286,23 @@ class TypingTutor(App):
         self.query_one("#finger-guide-wrapper").set_class(
             not overrides.get("SHOW_FINGERS", True), "hidden"
         )
+
+    def generate_lesson_text(self) -> str:
+        """Generates text based on the current lesson type."""
+        lesson = config.LESSONS[self.profile.current_lesson_index]
+        keys = lesson["keys"]
+
+        if lesson["type"] == "repeat":
+            # Example: "ASDFG HJKL; ASDFG HJKL;"
+            return (keys + " ") * 3
+        else:
+            # Example: Scrambled combinations like "ahkk ghkl"
+            words = []
+            clean_keys = keys.replace(" ", "")
+            for _ in range(5):
+                word = "".join(random.choices(clean_keys, k=4))
+                words.append(word)
+            return " ".join(words).upper()
 
 
 if __name__ == "__main__":
