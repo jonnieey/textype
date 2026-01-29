@@ -8,7 +8,8 @@ from textual.containers import Vertical, Horizontal
 from textual.binding import Binding
 
 import config
-from widgets import FingerColumn, StatsScreen
+from widgets import FingerColumn, StatsScreen, ProfileSelectScreen
+from models import UserProfile
 
 class TypingTutor(App):
     CSS_PATH = "styles.tcss"
@@ -18,6 +19,7 @@ class TypingTutor(App):
         Binding("f1", "toggle_keyboard", "Toggle Keys"),
         Binding("f2", "toggle_fingers", "Toggle Fingers"),
         Binding("f3", "toggle_stats_pref", "Toggle Stats"),
+        Binding("f4", "switch_profile", "Switch Profile"),
         Binding("escape", "quit", "Quit"),
     ]
 
@@ -61,7 +63,7 @@ class TypingTutor(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.refresh_display()
+        self.action_switch_profile()
 
     # Toggles for UI elements
     def action_toggle_keyboard(self) -> None:
@@ -76,6 +78,35 @@ class TypingTutor(App):
         status = "ON" if self.show_stats_pref else "OFF"
         self.notify(f"Auto-Stats: {status}")
 
+    def action_switch_profile(self) -> None:
+        def set_profile(profile: UserProfile):
+            if profile:
+                self.profile = profile
+                self.apply_profile_config()
+                self.notify(f"Welcome, {profile.name}!")
+                self.reset_drill()
+
+        self.push_screen(ProfileSelectScreen(), set_profile)
+
+    def action_quit(self) -> None:
+            """Saves current UI configuration to the profile before exiting."""
+            if self.profile:
+                kb_visible = not self.query_one("#keyboard-section").has_class("hidden")
+                fg_visible = not self.query_one("#finger-guide-wrapper").has_class("hidden")
+                
+                # 2. Update profile overrides
+                self.profile.config_overrides.update({
+                    "SHOW_QWERTY": kb_visible,
+                    "SHOW_FINGERS": fg_visible,
+                    "SHOW_STATS_ON_END": self.show_stats_pref
+                })
+                
+                # 3. Persist to disk
+                self.profile.save()
+                self.notify(f"Config saved for {self.profile.name}")
+
+            # 4. Standard exit
+            self.exit()
     def on_key(self, event) -> None:
         if len(self.typed_text) >= len(self.target_text):
             if event.key == "enter":
@@ -169,8 +200,25 @@ class TypingTutor(App):
          acc = round(((len(self.typed_text) - self.total_errors) 
                      / max(1, len(self.typed_text) + self.total_errors)) * 100)
 
+         self.profile.total_drills += 1
+         if wpm > self.profile.wpm_record:
+             self.profile.wpm_record = wpm
+         self.profile.save()
+
          self.push_screen(StatsScreen(wpm, acc, self.total_errors), 
                           lambda next: self.reset_drill() if next else None)
 
+    def apply_profile_config(self):
+        """Applies the configuration saved in the user's profile."""
+        overrides = self.profile.config_overrides
+        self.show_stats_pref = overrides.get("SHOW_STATS_ON_END", True)
+        
+        # Update UI visibility
+        self.query_one("#keyboard-section").set_class(
+            not overrides.get("SHOW_QWERTY", True), "hidden"
+        )
+        self.query_one("#finger-guide-wrapper").set_class(
+            not overrides.get("SHOW_FINGERS", True), "hidden"
+        )
 if __name__ == "__main__":
     TypingTutor().run()

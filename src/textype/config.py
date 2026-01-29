@@ -1,9 +1,9 @@
 from collections import namedtuple
 
-SHOW_QWERTY = True 
-SHOW_FINGERS = True
+SHOW_QWERTY = False 
+SHOW_FINGERS = False
 HARD_MODE = True
-SHOW_STATS_ON_END = True
+SHOW_STATS_ON_END = False
 
 SENTENCES = [
     "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG",

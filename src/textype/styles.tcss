@@ -118,3 +118,31 @@
     width: 100%;
     margin-top: 1;
 }
+#profile-modal {
+    width: 50;
+    height: auto;
+    background: #24283b;
+    border: thick #bb9af7;
+    padding: 1 2;
+}
+
+#new-profile-input {
+    margin: 1 0;
+    border: tall #414868;
+    background: #1f2335;
+}
+
+#profile-list {
+    height: 10;
+    background: #1a1b26;
+    border: solid #414868;
+    margin-bottom: 1;
+}
+
+#profile-list ListItem {
+    padding: 0 1;
+}
+
+#profile-list ListItem:hover {
+    background: #414868;
+}

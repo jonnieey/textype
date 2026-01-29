@@ -1,8 +1,9 @@
 from textual.app import ComposeResult
-from textual.widgets import Static, Label, Button
+from textual.widgets import Static, Label, Button, Input, ListItem, ListView
 from textual.containers import Container, Center, Middle
 from textual.screen import Screen
 from config import MAX_FINGER_HEIGHT
+from models import UserProfile
 
 class FingerColumn(Container):
     """A visual representation of a single finger's column."""
@@ -53,3 +54,34 @@ class StatsScreen(Screen):
     def on_key(self, event) -> None:
         if event.key == "enter":
             self.dismiss(True)
+
+class ProfileSelectScreen(Screen):
+    """Screen to select or create a user profile."""
+    def compose(self) -> ComposeResult:
+        with Center():
+            with Middle(id="profile-modal"):
+                yield Label("SELECT OR CREATE PROFILE", id="stats-title")
+                yield Input(placeholder="Enter new profile name...", id="new-profile-input")
+                yield ListView(id="profile-list")
+                yield Label("Press Enter to Select/Create", classes="stat-line")
+
+    def on_mount(self) -> None:
+        self.refresh_list()
+        self.query_one("#new-profile-input").focus()
+
+    def refresh_list(self) -> None:
+        lst = self.query_one("#profile-list")
+        lst.clear()
+        for p in UserProfile.list_profiles():
+            lst.append(ListItem(Label(p.capitalize()), id=p))
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        name = event.value.strip()
+        if name:
+            profile = UserProfile.load(name) or UserProfile(name=name)
+            profile.save()
+            self.dismiss(profile)
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        profile = UserProfile.load(event.item.id)
+        self.dismiss(profile)
