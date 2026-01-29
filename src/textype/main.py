@@ -10,6 +10,7 @@ from textual.binding import Binding
 import config
 from widgets import FingerColumn, StatsScreen, ProfileSelectScreen
 from models import UserProfile
+import generator_algorithms as algos
 
 
 class TypingTutor(App):
@@ -278,21 +279,26 @@ class TypingTutor(App):
         )
 
     def generate_lesson_text(self) -> str:
-        """Generates text based on the current lesson type."""
         lesson = config.LESSONS[self.profile.current_lesson_index]
-        keys = lesson["keys"]
+        algo_type = lesson.get("algo")
+        row_data = algos.LAYOUT.get(lesson.get("row", "home"))
 
-        if lesson["type"] == "repeat":
-            # Example: "ASDFG HJKL; ASDFG HJKL;"
-            return (keys + " ") * 3
-        else:
-            # Example: Scrambled combinations like "ahkk ghkl"
-            words = []
-            clean_keys = keys.replace(" ", "")
-            for _ in range(5):
-                word = "".join(random.choices(clean_keys, k=4))
-                words.append(word)
-            return " ".join(words).upper()
+        dispatch = {
+            "repeat": lambda: algos.single_key_repeat(
+                row_data["left"] + row_data["right"]
+            ),
+            "adjacent": lambda: algos.same_hand_adjacent(row_data),
+            "alternating": lambda: algos.alternating_pairs(row_data),
+            "mirror": lambda: algos.mirror_pairs(row_data),
+            "rolls": lambda: algos.rolls(row_data),
+            "pseudo": lambda: algos.pseudo_words(row_data),
+        }
+
+        # Execute the mapped function or fallback to a basic scramble
+        generator = dispatch.get(
+            algo_type, lambda: " ".join(random.choices(row_data["left"], k=10))
+        )
+        return generator().upper()
 
     def evaluate_drill(self) -> bool:
         """Determines if the user passed the requirements and increments lesson index."""
