@@ -74,7 +74,12 @@ class ProfileSelectScreen(Screen):
 
     def on_mount(self) -> None:
         self.refresh_list()
-        self.query_one("#new-profile-input").focus()
+        lst = self.query_one("#profile-list")
+        if lst.children:
+            lst.focus()
+            lst.index = 0
+        else:
+            self.query_one("#new-profile-input").focus()
 
     def refresh_list(self) -> None:
         lst = self.query_one("#profile-list")
