@@ -5,8 +5,10 @@ from textual.screen import Screen
 from config import MAX_FINGER_HEIGHT
 from models import UserProfile
 
+
 class FingerColumn(Container):
     """A visual representation of a single finger's column."""
+
     def __init__(self, fid: str, height: int, width: int):
         super().__init__(classes="finger-column")
         self.fid = fid
@@ -27,9 +29,10 @@ class FingerColumn(Container):
         body.styles.width = self.width
         yield body
 
+
 class StatsScreen(Screen):
     """A modal screen that displays the results of a typing drill."""
-    
+
     def __init__(self, wpm: int, accuracy: int, errors: int):
         super().__init__()
         self.wpm = wpm
@@ -55,13 +58,17 @@ class StatsScreen(Screen):
         if event.key == "enter":
             self.dismiss(True)
 
+
 class ProfileSelectScreen(Screen):
     """Screen to select or create a user profile."""
+
     def compose(self) -> ComposeResult:
         with Center():
             with Middle(id="profile-modal"):
                 yield Label("SELECT OR CREATE PROFILE", id="stats-title")
-                yield Input(placeholder="Enter new profile name...", id="new-profile-input")
+                yield Input(
+                    placeholder="Enter new profile name...", id="new-profile-input"
+                )
                 yield ListView(id="profile-list")
                 yield Label("Press Enter to Select/Create", classes="stat-line")
 

@@ -11,9 +11,10 @@ import config
 from widgets import FingerColumn, StatsScreen, ProfileSelectScreen
 from models import UserProfile
 
+
 class TypingTutor(App):
     CSS_PATH = "styles.tcss"
-    
+
     # Added F2 binding for fingers
     BINDINGS = [
         Binding("f1", "toggle_keyboard", "Toggle Keys"),
@@ -41,14 +42,18 @@ class TypingTutor(App):
             kb_classes = "" if config.SHOW_QWERTY else "hidden"
             with Vertical(id="keyboard-section", classes=kb_classes):
                 rows = [
-                    ["Q","W","E","R","T","Y","U","I","O","P"],
-                    ["A","S","D","F","G","H","J","K","L",";"],
-                    ["Z","X","C","V","B","N","M",",",".","/"]
+                    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+                    ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";"],
+                    ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"],
                 ]
                 for r in rows:
                     with Horizontal(classes="key-row"):
                         for c in r:
-                            yield Static(c, classes="key", id=f"key-{config.ID_MAP.get(c, c.lower())}")
+                            yield Static(
+                                c,
+                                classes="key",
+                                id=f"key-{config.ID_MAP.get(c, c.lower())}",
+                            )
 
                 with Horizontal(classes="key-row"):
                     yield Static("SPACE", id="key-space", classes="key")
@@ -58,7 +63,9 @@ class TypingTutor(App):
             with Horizontal(id="finger-guide-wrapper", classes=fg_classes):
                 with Horizontal(id="finger-guide"):
                     for fid, dimensions in config.FINGER_HEIGHTS.items():
-                        yield FingerColumn(fid, dimensions.height, dimensions.width) # (h, w)
+                        yield FingerColumn(
+                            fid, dimensions.height, dimensions.width
+                        )  # (h, w)
 
         yield Footer()
 
@@ -89,29 +96,32 @@ class TypingTutor(App):
         self.push_screen(ProfileSelectScreen(), set_profile)
 
     def action_quit(self) -> None:
-            """Saves current UI configuration to the profile before exiting."""
-            if self.profile:
-                kb_visible = not self.query_one("#keyboard-section").has_class("hidden")
-                fg_visible = not self.query_one("#finger-guide-wrapper").has_class("hidden")
-                
-                # 2. Update profile overrides
-                self.profile.config_overrides.update({
+        """Saves current UI configuration to the profile before exiting."""
+        if self.profile:
+            kb_visible = not self.query_one("#keyboard-section").has_class("hidden")
+            fg_visible = not self.query_one("#finger-guide-wrapper").has_class("hidden")
+
+            # 2. Update profile overrides
+            self.profile.config_overrides.update(
+                {
                     "SHOW_QWERTY": kb_visible,
                     "SHOW_FINGERS": fg_visible,
-                    "SHOW_STATS_ON_END": self.show_stats_pref
-                })
-                
-                # 3. Persist to disk
-                self.profile.save()
-                self.notify(f"Config saved for {self.profile.name}")
+                    "SHOW_STATS_ON_END": self.show_stats_pref,
+                }
+            )
 
-            # 4. Standard exit
-            self.exit()
+            # 3. Persist to disk
+            self.profile.save()
+            self.notify(f"Config saved for {self.profile.name}")
+
+        # 4. Standard exit
+        self.exit()
+
     def on_key(self, event) -> None:
         if len(self.typed_text) >= len(self.target_text):
             if event.key == "enter":
                 self.reset_drill()
-            elif event.key == "s": # Manual trigger for stats
+            elif event.key == "s":  # Manual trigger for stats
                 self.show_final_stats()
             return
 
@@ -135,12 +145,17 @@ class TypingTutor(App):
 
         self.refresh_display()
         self.check_completion()
-    
+
     def refresh_display(self) -> None:
         elapsed = (time.time() - self.start_time) / 60 if self.start_time else 0
         wpm = round((len(self.typed_text) / 5) / elapsed) if elapsed > 0 else 0
-        acc = round(((len(self.typed_text) - self.total_errors)
-                    / max(1, len(self.typed_text) + self.total_errors)) * 100)
+        acc = round(
+            (
+                (len(self.typed_text) - self.total_errors)
+                / max(1, len(self.typed_text) + self.total_errors)
+            )
+            * 100
+        )
 
         self.query_one("#stats-bar").update(
             f"WPM: {wpm} | ACCURACY: {acc}% | ERRORS: {self.total_errors}"
@@ -149,7 +164,11 @@ class TypingTutor(App):
         rich = ""
         for i, c in enumerate(self.target_text):
             if i < len(self.typed_text):
-                rich += f"[#9ece6a]{c}[/]" if self.typed_text[i] == c else f"[#f7768e]{c}[/]"
+                rich += (
+                    f"[#9ece6a]{c}[/]"
+                    if self.typed_text[i] == c
+                    else f"[#f7768e]{c}[/]"
+                )
             elif i == len(self.typed_text):
                 rich += f"[reverse]{c}[/]"
             else:
@@ -161,18 +180,20 @@ class TypingTutor(App):
 
         if len(self.typed_text) < len(self.target_text):
             nxt = self.target_text[len(self.typed_text)]
-            kid = f"#key-{'space' if nxt == ' ' else config.ID_MAP.get(nxt, nxt.lower())}"
-            
+            kid = (
+                f"#key-{'space' if nxt == ' ' else config.ID_MAP.get(nxt, nxt.lower())}"
+            )
+
             try:
                 self.query_one(kid).add_class("active-key")
-            except:
+            except Exception:
                 pass
 
             fid = config.FINGER_MAP.get(nxt)
             if fid:
                 try:
                     self.query_one(f"#{fid}").add_class("active-finger")
-                except:
+                except Exception:
                     pass
 
     def reset_drill(self) -> None:
@@ -193,26 +214,34 @@ class TypingTutor(App):
                     f"\n[#9ece6a]{self.target_text}[/]\n\n"
                     "[reverse] PRESS ENTER FOR NEXT [/]  [#7aa2f7](OR 'S' FOR STATS)[/]"
                 )
+
     def show_final_stats(self) -> None:
-         """Calculates metrics and pushes the StatsScreen."""
-         elapsed = (time.time() - self.start_time) / 60
-         wpm = round((len(self.typed_text) / 5) / elapsed)
-         acc = round(((len(self.typed_text) - self.total_errors) 
-                     / max(1, len(self.typed_text) + self.total_errors)) * 100)
+        """Calculates metrics and pushes the StatsScreen."""
+        elapsed = (time.time() - self.start_time) / 60
+        wpm = round((len(self.typed_text) / 5) / elapsed)
+        acc = round(
+            (
+                (len(self.typed_text) - self.total_errors)
+                / max(1, len(self.typed_text) + self.total_errors)
+            )
+            * 100
+        )
 
-         self.profile.total_drills += 1
-         if wpm > self.profile.wpm_record:
-             self.profile.wpm_record = wpm
-         self.profile.save()
+        self.profile.total_drills += 1
+        if wpm > self.profile.wpm_record:
+            self.profile.wpm_record = wpm
+        self.profile.save()
 
-         self.push_screen(StatsScreen(wpm, acc, self.total_errors), 
-                          lambda next: self.reset_drill() if next else None)
+        self.push_screen(
+            StatsScreen(wpm, acc, self.total_errors),
+            lambda next: self.reset_drill() if next else None,
+        )
 
     def apply_profile_config(self):
         """Applies the configuration saved in the user's profile."""
         overrides = self.profile.config_overrides
         self.show_stats_pref = overrides.get("SHOW_STATS_ON_END", True)
-        
+
         # Update UI visibility
         self.query_one("#keyboard-section").set_class(
             not overrides.get("SHOW_QWERTY", True), "hidden"
@@ -220,5 +249,7 @@ class TypingTutor(App):
         self.query_one("#finger-guide-wrapper").set_class(
             not overrides.get("SHOW_FINGERS", True), "hidden"
         )
+
+
 if __name__ == "__main__":
     TypingTutor().run()
