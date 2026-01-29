@@ -55,8 +55,8 @@ class TypingTutor(App):
             fg_classes = "" if config.SHOW_FINGERS else "hidden"
             with Horizontal(id="finger-guide-wrapper", classes=fg_classes):
                 with Horizontal(id="finger-guide"):
-                    for fid, h in config.FINGER_HEIGHTS.items():
-                        yield FingerColumn(fid, h)
+                    for fid, dimensions in config.FINGER_HEIGHTS.items():
+                        yield FingerColumn(fid, dimensions.height, dimensions.width) # (h, w)
 
         yield Footer()
 

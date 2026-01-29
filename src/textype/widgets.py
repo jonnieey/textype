@@ -10,6 +10,7 @@ class FingerColumn(Container):
         super().__init__(classes="finger-column")
         self.fid = fid
         self.height = height
+        self.width = width
 
     def compose(self) -> ComposeResult:
         spacer = Static("")
@@ -22,6 +23,7 @@ class FingerColumn(Container):
             classes="finger-body",
         )
         body.styles.height = self.height
+        body.styles.width = self.width
         yield body
 
 class StatsScreen(Screen):

@@ -57,7 +57,7 @@
 }
 
 .finger-column {
-    width: 8;
+    width: auto;
     height: 100%;
     align: center bottom;
 }

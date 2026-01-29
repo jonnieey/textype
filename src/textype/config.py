@@ -14,13 +14,15 @@ SENTENCES = [
 
 ID_MAP = {" ": "space", ";": "semicolon", ",": "comma", ".": "dot", "/": "slash"}
 
+FingerDimensions = namedtuple('FingerDimensions', ['height', 'width'])
+
 FINGER_HEIGHTS = {
-    "L1": 4, "L2": 6, "L3": 7, "L4": 6,
-    "THUMB": 2,
-    "R1": 6, "R2": 7, "R3": 6, "R4": 4
+    "L1": FingerDimensions(4, 7), "L2": FingerDimensions(6, 7), "L3": FingerDimensions(7, 7), "L4": FingerDimensions(6, 7),
+    "THUMB": FingerDimensions(2, 20),
+    "R1": FingerDimensions(6, 7), "R2": FingerDimensions(7, 7), "R3": FingerDimensions(6, 7), "R4": FingerDimensions(4, 7)
 }
 
-MAX_FINGER_HEIGHT = max(FINGER_HEIGHTS.values())
+MAX_FINGER_HEIGHT = max(dimensions.height for dimensions in FINGER_HEIGHTS.values())
 
 FINGER_MAP = {
     "Q": "L1", "A": "L1", "Z": "L1",
