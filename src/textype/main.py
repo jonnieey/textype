@@ -27,10 +27,16 @@ class TypingTutor(App):
 
     def __init__(self):
         super().__init__()
-        self.target_text = random.choice(config.SENTENCES)
+        self.target_text = ""
         self.typed_text = ""
-        self.start_time = None
-        self.total_errors = 0
+
+        # Session state
+        self.session_start_time = None
+        self.session_active = False
+        self.cumulative_typed_chars = 0
+        self.cumulative_errors = 0
+        self.current_chunk_errors = 0
+
         self.show_stats_pref = config.SHOW_STATS_ON_END
         self.profile = None
 
@@ -86,6 +92,15 @@ class TypingTutor(App):
 
     def on_mount(self) -> None:
         self.action_switch_profile()
+        self.set_interval(0.5, self.update_timer)
+
+    def update_timer(self) -> None:
+        if self.session_active and self.session_start_time:
+            elapsed = time.time() - self.session_start_time
+            if elapsed >= config.DRILL_DURATION:
+                self.end_drill_session()
+            else:
+                self.refresh_display()
 
     # Toggles for UI elements
     def action_toggle_keyboard(self) -> None:
@@ -106,7 +121,7 @@ class TypingTutor(App):
                 self.profile = profile
                 self.apply_profile_config()
                 self.notify(f"Welcome, {profile.name}!")
-                self.reset_drill()
+                self.start_new_session()
 
         self.push_screen(ProfileSelectScreen(), set_profile)
 
@@ -136,11 +151,18 @@ class TypingTutor(App):
         if self.profile is None:
             return
 
-        if len(self.typed_text) >= len(self.target_text):
+        # If session is inactive, allow Enter to restart
+        if not self.session_active:
             if event.key == "enter":
-                self.reset_drill()
-            elif event.key == "s":  # Manual trigger for stats
-                self.show_final_stats()
+                self.start_new_session()
+            return
+
+        if len(self.typed_text) >= len(self.target_text):
+            # This shouldn't happen often with auto-paging, but as a fallback
+            if event.key == "enter":
+                self.load_next_chunk()
+            elif event.key == "s":
+                self.end_drill_session()
             return
 
         if event.key == "space":
@@ -150,8 +172,8 @@ class TypingTutor(App):
         else:
             char = None
 
-        if not self.start_time and char and len(char) == 1:
-            self.start_time = time.time()
+        if not self.session_start_time and char:
+            self.session_start_time = time.time()
 
         if event.key == "backspace":
             self.typed_text = self.typed_text[:-1]
@@ -161,28 +183,54 @@ class TypingTutor(App):
                 if char == self.target_text[idx]:
                     self.typed_text += char
                 else:
-                    self.total_errors += 1
+                    self.current_chunk_errors += 1
                     if not config.HARD_MODE:
                         self.typed_text += char
 
         self.refresh_display()
-        self.check_completion()
+        self.check_chunk_completion()
 
     def refresh_display(self) -> None:
-        elapsed = (time.time() - self.start_time) / 60 if self.start_time else 0
-        wpm = round((len(self.typed_text) / 5) / elapsed) if elapsed > 0 else 0
+        # Time Calculation
+        if self.session_start_time and self.session_active:
+            elapsed = time.time() - self.session_start_time
+            remaining = max(0, config.DRILL_DURATION - elapsed)
+        else:
+            elapsed = 0
+            remaining = config.DRILL_DURATION
+
+        mins, secs = divmod(int(remaining), 60)
+        timer_str = f"{mins:02}:{secs:02}"
+
+        # Stats Calculation
+        total_chars = self.cumulative_typed_chars + len(self.typed_text)
+        total_errs = self.cumulative_errors + self.current_chunk_errors
+
+        # Avoid division by zero
+        safe_elapsed = elapsed if elapsed > 0 else 1e-6
+        wpm = round((total_chars / 5) / (safe_elapsed / 60)) if elapsed > 0 else 0
+
         acc = round(
-            (
-                (len(self.typed_text) - self.total_errors)
-                / max(1, len(self.typed_text) + self.total_errors)
+            ((total_chars - total_errs) / max(1, total_chars + total_errs)) * 100
+        )
+
+        # Update Header
+        if self.profile:
+            lesson_idx = self.profile.current_lesson_index
+            if lesson_idx < len(config.LESSONS):
+                lesson_name = config.LESSONS[lesson_idx]["name"]
+            else:
+                lesson_name = "Master Mode"
+
+            status_text = (
+                f"LESSON: {lesson_name} | TIME: {timer_str} | WPM: {wpm} | ACC: {acc}%"
             )
-            * 100
-        )
+        else:
+            status_text = f"TIME: {timer_str} | WPM: {wpm} | ACC: {acc}% | [bold red]AWAITING PROFILE...[/]"
 
-        self.query_one("#stats-bar").update(
-            f"WPM: {wpm} | ACCURACY: {acc}% | ERRORS: {self.total_errors}"
-        )
+        self.query_one("#stats-bar").update(status_text)
 
+        # Highlighting logic (same as before)
         rich = ""
         for i, c in enumerate(self.target_text):
             if i < len(self.typed_text):
@@ -202,9 +250,6 @@ class TypingTutor(App):
 
         if len(self.typed_text) < len(self.target_text):
             nxt = self.target_text[len(self.typed_text)]
-
-            # Determine target key ID
-            # Map symbol to ID or use char.lower()
             key_lookup = nxt.lower()
             kid_suffix = config.ID_MAP.get(key_lookup, key_lookup)
             kid = f"#key-{kid_suffix}"
@@ -214,10 +259,7 @@ class TypingTutor(App):
             except Exception:
                 pass
 
-            # Determine Finger
             fid = config.FINGER_MAP.get(nxt.upper())
-
-            # Shift Logic
             if nxt.isupper() and fid:
                 shift_id = "#key-shift-r" if fid.startswith("L") else "#key-shift-l"
                 try:
@@ -225,71 +267,100 @@ class TypingTutor(App):
                 except Exception:
                     pass
 
-            # Highlight Finger
             if fid:
                 try:
                     self.query_one(f"#{fid}").add_class("active-finger")
                 except Exception:
                     pass
 
-        if not self.profile:
-            self.query_one("#stats-bar").update(
-                f"WPM: {wpm} | ACCURACY: {acc}% | [bold red]AWAITING PROFILE...[/]"
-            )
-        else:
-            # Now it is safe to access the profile
-            lesson_idx = self.profile.current_lesson_index
+    def start_new_session(self) -> None:
+        """Starts a new 5-minute drill session."""
+        self.session_active = True
+        self.session_start_time = None
+        self.cumulative_typed_chars = 0
+        self.cumulative_errors = 0
+        self.current_chunk_errors = 0
 
-            # Ensure index is within LESSONS bounds to prevent IndexErrors
-            if lesson_idx < len(config.LESSONS):
-                lesson_name = config.LESSONS[lesson_idx]["name"]
-            else:
-                lesson_name = "Master Mode (Free Typing)"
-
-            self.query_one("#stats-bar").update(
-                f"LESSON: {lesson_name} | WPM: {wpm} | ACCURACY: {acc}%"
-            )
-
-    def reset_drill(self) -> None:
-        """Selects text based on the current lesson stage."""
         if self.profile:
             self.target_text = self.generate_lesson_text()
         else:
             self.target_text = random.choice(config.SENTENCES)
 
         self.typed_text = ""
-        self.start_time = None
-        self.total_errors = 0
         self.refresh_display()
 
-    def check_completion(self) -> None:
-        if len(self.typed_text) == len(self.target_text):
-            self.evaluate_drill()
-            if self.show_stats_pref:
-                self.show_final_stats()
-            else:
-                # Prompt user in the typing area
-                self.query_one("#typing-area").update(
-                    f"\n[#9ece6a]{self.target_text}[/]\n\n"
-                    "[reverse] PRESS ENTER FOR NEXT [/]  [#7aa2f7](OR 'S' FOR STATS)[/]"
-                )
+    def load_next_chunk(self) -> None:
+        """Loads the next chunk of text within the same session."""
+        self.cumulative_typed_chars += len(self.typed_text)
+        self.cumulative_errors += self.current_chunk_errors
 
-    def show_final_stats(self) -> None:
-        """Only handles the UI modal display."""
-        elapsed = (time.time() - self.start_time) / 60
-        wpm = round((len(self.typed_text) / 5) / elapsed)
+        if self.profile:
+            self.target_text = self.generate_lesson_text()
+        else:
+            self.target_text = random.choice(config.SENTENCES)
+
+        self.typed_text = ""
+        self.current_chunk_errors = 0
+        self.refresh_display()
+
+    def check_chunk_completion(self) -> None:
+        if len(self.typed_text) == len(self.target_text):
+            # If session is still active, load next chunk
+            if self.session_active:
+                self.load_next_chunk()
+
+    def end_drill_session(self) -> None:
+        """Ends the session and shows stats."""
+        self.session_active = False
+
+        # Add final stats
+        self.cumulative_typed_chars += len(self.typed_text)
+        self.cumulative_errors += self.current_chunk_errors
+
+        self.evaluate_drill_and_show_stats()
+
+    def evaluate_drill_and_show_stats(self) -> None:
+        # Calculate final stats
+        elapsed = config.DRILL_DURATION / 60  # Normalized to full duration
+
+        wpm = round((self.cumulative_typed_chars / 5) / elapsed)
+        total_ops = self.cumulative_typed_chars + self.cumulative_errors
         acc = round(
-            (
-                (len(self.typed_text) - self.total_errors)
-                / max(1, len(self.typed_text) + self.total_errors)
-            )
+            ((self.cumulative_typed_chars - self.cumulative_errors) / max(1, total_ops))
             * 100
         )
 
-        # We don't call evaluate_drill here anymore because it ran in check_completion
-        self.push_screen(
-            StatsScreen(wpm, acc, self.total_errors), lambda _: self.reset_drill()
-        )
+        passed = False
+        if self.profile:
+            lesson = config.LESSONS[self.profile.current_lesson_index]
+            passed = acc >= lesson["target_acc"] and wpm >= lesson["target_wpm"]
+
+            if passed:
+                self.profile.current_lesson_index += 1
+                if self.profile.current_lesson_index >= len(config.LESSONS):
+                    self.profile.current_lesson_index = len(config.LESSONS) - 1
+                self.notify(f"LEVEL UP: {lesson['name']} Cleared!")
+            else:
+                self.notify(
+                    "Requirements not met. Lesson will repeat.", severity="warning"
+                )
+
+            if wpm > self.profile.wpm_record:
+                self.profile.wpm_record = wpm
+            self.profile.total_drills += 1
+            self.profile.save()
+
+        if self.show_stats_pref:
+            self.push_screen(
+                StatsScreen(wpm, acc, self.cumulative_errors),
+                lambda _: self.start_new_session(),
+            )
+        else:
+            self.query_one("#typing-area").update(
+                f"\n[#9ece6a]SESSION COMPLETE[/]\n\n"
+                f"WPM: {wpm} | ACC: {acc}% | ERRORS: {self.cumulative_errors}\n\n"
+                "[reverse] PRESS ENTER TO START NEXT SESSION [/]"
+            )
 
     def apply_profile_config(self):
         """Applies the configuration saved in the user's profile."""
@@ -328,43 +399,6 @@ class TypingTutor(App):
 
         all_keys = row_data["left"] + row_data["right"]
         return " ".join(["".join(random.choices(all_keys, k=4)) for _ in range(10)])
-
-    def evaluate_drill(self) -> bool:
-        """Determines if the user passed the requirements and increments lesson index."""
-        if not self.start_time:
-            return False
-
-        elapsed = (time.time() - self.start_time) / 60
-        wpm = round((len(self.typed_text) / 5) / elapsed)
-        acc = round(
-            (
-                (len(self.typed_text) - self.total_errors)
-                / max(1, len(self.typed_text) + self.total_errors)
-            )
-            * 100
-        )
-
-        # Check requirements from config
-        lesson = config.LESSONS[self.profile.current_lesson_index]
-        passed = acc >= lesson["target_acc"] and wpm >= lesson["target_wpm"]
-
-        if passed:
-            self.profile.current_lesson_index += 1
-            # Prevent overflow if they finish all lessons
-            if self.profile.current_lesson_index >= len(config.LESSONS):
-                self.profile.current_lesson_index = len(config.LESSONS) - 1
-
-            self.notify(f"LEVEL UP: {lesson['name']} Cleared!")
-        else:
-            self.notify("Requirements not met. Lesson will repeat.", severity="warning")
-
-        # Update profile records and save
-        if wpm > self.profile.wpm_record:
-            self.profile.wpm_record = wpm
-        self.profile.total_drills += 1
-        self.profile.save()
-
-        return passed
 
 
 if __name__ == "__main__":

@@ -11,7 +11,10 @@ LAYOUT = {
 
 def single_key_repeat(keys, reps=4):
     """Algorithm 1: Build muscle memory through isolation."""
-    return " ".join(["".join([key] * reps) for key in keys])
+    # Convert string to list to shuffle
+    key_list = list(keys)
+    random.shuffle(key_list)
+    return " ".join(["".join([key] * reps) for key in key_list])
 
 
 def same_hand_adjacent(row_keys, reps=3):
@@ -20,7 +23,11 @@ def same_hand_adjacent(row_keys, reps=3):
     for hand_keys in [row_keys["left"], row_keys["right"]]:
         for idx in range(len(hand_keys) - 1):
             pairs.append(hand_keys[idx] + hand_keys[idx + 1])
-    return " ".join(pairs * reps)
+
+    # Create the full list of items and shuffle
+    items = pairs * reps
+    random.shuffle(items)
+    return " ".join(items)
 
 
 def alternating_pairs(row_keys, reps=4):
@@ -29,7 +36,9 @@ def alternating_pairs(row_keys, reps=4):
         left_key + right_key
         for left_key, right_key in zip(row_keys["left"], row_keys["right"])
     ]
-    return " ".join(pairs * reps)
+    items = pairs * reps
+    random.shuffle(items)
+    return " ".join(items)
 
 
 def mirror_pairs(row_keys, reps=4):
@@ -39,15 +48,27 @@ def mirror_pairs(row_keys, reps=4):
         row_keys["left"][idx] + row_keys["right"][-(idx + 1)]
         for idx in range(len(row_keys["left"]))
     ]
-    return " ".join(pairs * reps)
+    items = pairs * reps
+    random.shuffle(items)
+    return " ".join(items)
 
 
 def rolls(row_keys, reps=2):
     """Algorithm 6: Inward and Outward finger flows."""
     left_keys, right_keys = row_keys["left"], row_keys["right"]
     # Inward: ASDF -> ASDF, Outward: ASDF -> FDSA
-    pattern = f"{left_keys} {left_keys[::-1]} {right_keys} {right_keys[::-1]}"
-    return " ".join([pattern] * reps)
+    # Create the 4 distinct roll patterns
+    patterns = [
+        left_keys,  # Left Inward (e.g. asdf)
+        left_keys[::-1],  # Left Outward (e.g. fdsa)
+        right_keys,  # Right Inward
+        right_keys[::-1],  # Right Outward
+    ]
+
+    # Create the full list of items to display
+    items = patterns * reps
+    random.shuffle(items)
+    return " ".join(items)
 
 
 def pseudo_words(row_keys, count=10):
@@ -65,8 +86,8 @@ if __name__ == "__main__":
     row_keys = LAYOUT["home"]
     print(single_key_repeat(row_keys["left"], reps=3))
     print(single_key_repeat(row_keys["right"], reps=3))
-    print(same_hand_adjacent(row_keys))
-    print(alternating_pairs(row_keys))
-    print(mirror_pairs(row_keys))
-    print(rolls(row_keys))
-    print(pseudo_words(row_keys))
+    # print(same_hand_adjacent(row_keys))
+    # print(alternating_pairs(row_keys))
+    # print(mirror_pairs(row_keys))
+    # print(rolls(row_keys))
+    # print(pseudo_words(row_keys))

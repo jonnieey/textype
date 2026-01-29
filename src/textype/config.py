@@ -4,6 +4,7 @@ SHOW_QWERTY = False
 SHOW_FINGERS = False
 HARD_MODE = True
 SHOW_STATS_ON_END = False
+DRILL_DURATION = 300  # Seconds (5 minutes)
 
 LESSONS = [
     {
