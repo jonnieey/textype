@@ -3,8 +3,9 @@ import json
 import os
 from dataclasses import dataclass, asdict, field
 from typing import Dict, Any
+from platformdirs import user_data_dir
 
-PROFILES_DIR = "profiles"
+PROFILES_DIR = user_data_dir("textype")
 
 
 @dataclass

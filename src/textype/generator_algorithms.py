@@ -9,15 +9,16 @@ LAYOUT = {
 }
 
 
-def single_key_repeat(keys, reps=4):
+def single_key_repeat(keys, reps=4, shuffle=True):
     """Algorithm 1: Build muscle memory through isolation."""
     # Convert string to list to shuffle
     key_list = list(keys)
-    random.shuffle(key_list)
+    if shuffle:
+        random.shuffle(key_list)
     return " ".join(["".join([key] * reps) for key in key_list])
 
 
-def same_hand_adjacent(row_keys, reps=3):
+def same_hand_adjacent(row_keys, reps=3, shuffle=True):
     """Algorithm 2: Learn finger neighbors."""
     pairs = []
     for hand_keys in [row_keys["left"], row_keys["right"]]:
@@ -26,22 +27,24 @@ def same_hand_adjacent(row_keys, reps=3):
 
     # Create the full list of items and shuffle
     items = pairs * reps
-    random.shuffle(items)
+    if shuffle:
+        random.shuffle(items)
     return " ".join(items)
 
 
-def alternating_pairs(row_keys, reps=4):
+def alternating_pairs(row_keys, reps=4, shuffle=True):
     """Algorithm 3: Rhythm & Balance training."""
     pairs = [
         left_key + right_key
         for left_key, right_key in zip(row_keys["left"], row_keys["right"])
     ]
     items = pairs * reps
-    random.shuffle(items)
+    if shuffle:
+        random.shuffle(items)
     return " ".join(items)
 
 
-def mirror_pairs(row_keys, reps=4):
+def mirror_pairs(row_keys, reps=4, shuffle=True):
     """Algorithm 4: Associate corresponding fingers on opposite hands."""
     # A with ;, S with L, etc.
     pairs = [
@@ -49,11 +52,12 @@ def mirror_pairs(row_keys, reps=4):
         for idx in range(len(row_keys["left"]))
     ]
     items = pairs * reps
-    random.shuffle(items)
+    if shuffle:
+        random.shuffle(items)
     return " ".join(items)
 
 
-def rolls(row_keys, reps=2):
+def rolls(row_keys, reps=2, shuffle=True):
     """Algorithm 6: Inward and Outward finger flows."""
     left_keys, right_keys = row_keys["left"], row_keys["right"]
     # Inward: ASDF -> ASDF, Outward: ASDF -> FDSA
@@ -67,7 +71,8 @@ def rolls(row_keys, reps=2):
 
     # Create the full list of items to display
     items = patterns * reps
-    random.shuffle(items)
+    if shuffle:
+        random.shuffle(items)
     return " ".join(items)
 
 

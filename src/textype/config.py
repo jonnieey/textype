@@ -5,6 +5,7 @@ SHOW_FINGERS = False
 HARD_MODE = True
 SHOW_STATS_ON_END = False
 DRILL_DURATION = 300  # Seconds (5 minutes)
+SHUFFLE_AFTER = 10  # Shuffle text after this many chunks
 
 LESSONS = [
     {

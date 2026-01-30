@@ -36,6 +36,7 @@ class TypingTutor(App):
         self.cumulative_typed_chars = 0
         self.cumulative_errors = 0
         self.current_chunk_errors = 0
+        self.chunks_completed = 0  # Track chunks for shuffle logic
 
         self.show_stats_pref = config.SHOW_STATS_ON_END
         self.profile = None
@@ -280,6 +281,7 @@ class TypingTutor(App):
         self.cumulative_typed_chars = 0
         self.cumulative_errors = 0
         self.current_chunk_errors = 0
+        self.chunks_completed = 0
 
         if self.profile:
             self.target_text = self.generate_lesson_text()
@@ -293,6 +295,7 @@ class TypingTutor(App):
         """Loads the next chunk of text within the same session."""
         self.cumulative_typed_chars += len(self.typed_text)
         self.cumulative_errors += self.current_chunk_errors
+        self.chunks_completed += 1
 
         if self.profile:
             self.target_text = self.generate_lesson_text()
@@ -381,14 +384,20 @@ class TypingTutor(App):
         row_key = lesson.get("row", "home")
         row_data = algos.LAYOUT.get(row_key)
 
+        should_shuffle = self.chunks_completed >= config.SHUFFLE_AFTER
+
         dispatch = {
             "repeat": lambda: algos.single_key_repeat(
-                row_data["left"] + row_data["right"]
+                row_data["left"] + row_data["right"], shuffle=should_shuffle
             ),
-            "adjacent": lambda: algos.same_hand_adjacent(row_data),
-            "alternating": lambda: algos.alternating_pairs(row_data),
-            "mirror": lambda: algos.mirror_pairs(row_data),
-            "rolls": lambda: algos.rolls(row_data),
+            "adjacent": lambda: algos.same_hand_adjacent(
+                row_data, shuffle=should_shuffle
+            ),
+            "alternating": lambda: algos.alternating_pairs(
+                row_data, shuffle=should_shuffle
+            ),
+            "mirror": lambda: algos.mirror_pairs(row_data, shuffle=should_shuffle),
+            "rolls": lambda: algos.rolls(row_data, shuffle=should_shuffle),
             "pseudo": lambda: algos.pseudo_words(row_data),
         }
 
