@@ -5,52 +5,57 @@ SHOW_FINGERS = False
 HARD_MODE = True
 SHOW_STATS_ON_END = False
 DRILL_DURATION = 300  # Seconds (5 minutes)
-SHUFFLE_AFTER = 10  # Shuffle text after this many chunks
+SHUFFLE_AFTER = 10  # Shuffle chunks after X repetitions
 
-LESSONS = [
-    {
-        "name": "1.1: Isolation",
-        "algo": "repeat",
-        "row": "home",
-        "target_acc": 95,
-        "target_wpm": 10,
-    },
-    {
-        "name": "1.2: Adjacency",
-        "algo": "adjacent",
-        "row": "home",
-        "target_acc": 95,
-        "target_wpm": 15,
-    },
-    {
-        "name": "1.3: Alternating",
-        "algo": "alternating",
-        "row": "home",
-        "target_acc": 92,
-        "target_wpm": 20,
-    },
-    {
-        "name": "1.4: Mirroring",
-        "algo": "mirror",
-        "row": "home",
-        "target_acc": 92,
-        "target_wpm": 20,
-    },
-    {
-        "name": "1.5: Rolling",
-        "algo": "rolls",
-        "row": "home",
-        "target_acc": 90,
-        "target_wpm": 25,
-    },
-    {
-        "name": "1.6: Synthesis",
-        "algo": "pseudo",
-        "row": "home",
-        "target_acc": 95,
-        "target_wpm": 30,
-    },
-]
+rows = ("home", "top", "bottom", "numbers")
+LESSONS = []
+for row in rows:
+    LESSONS.extend(
+        [
+            {
+                "name": "1.1: Isolation",
+                "algo": "repeat",
+                "row": row,
+                "target_acc": 95,
+                "target_wpm": 10,
+            },
+            {
+                "name": "1.2: Adjacency",
+                "algo": "adjacent",
+                "row": row,
+                "target_acc": 95,
+                "target_wpm": 10,
+            },
+            {
+                "name": "1.3: Alternating",
+                "algo": "alternating",
+                "row": row,
+                "target_acc": 92,
+                "target_wpm": 10,
+            },
+            {
+                "name": "1.4: Mirroring",
+                "algo": "mirror",
+                "row": row,
+                "target_acc": 92,
+                "target_wpm": 10,
+            },
+            {
+                "name": "1.5: Rolling",
+                "algo": "rolls",
+                "row": row,
+                "target_acc": 90,
+                "target_wpm": 10,
+            },
+            {
+                "name": "1.6: Synthesis",
+                "algo": "pseudo",
+                "row": row,
+                "target_acc": 95,
+                "target_wpm": 10,
+            },
+        ]
+    )
 
 SENTENCES = [
     "The quick brown fox jumps over the lazy dog",
