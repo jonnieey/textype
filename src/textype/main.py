@@ -11,6 +11,8 @@ import config
 from widgets import FingerColumn, StatsScreen, ProfileSelectScreen
 from models import UserProfile
 import generator_algorithms as algos
+from xkb_resolver import XKBResolver
+from keyboard import PhysicalKey, KEYBOARD_ROWS, FINGER_MAP, DISPLAY_MAP
 
 
 class TypingTutor(App):
@@ -40,6 +42,24 @@ class TypingTutor(App):
 
         self.show_stats_pref = config.SHOW_STATS_ON_END
         self.profile = None
+        self.resolver = XKBResolver()
+        self.target_keys: list[PhysicalKey] = []
+
+        # Build Reverse Map: Character -> Physical Key (for validation)
+        # Note: This is an approximation. A robust solution might iterate all keycodes.
+        self.char_to_physical = {}
+        for key in PhysicalKey:
+            # Check unmodified
+            char = self.resolver.resolve(key.value)
+            if char:
+                self.char_to_physical[char] = key
+
+            # Check shifted
+            self.resolver.update_modifiers(shift=True)
+            char_shifted = self.resolver.resolve(key.value)
+            if char_shifted:
+                self.char_to_physical[char_shifted] = key
+            self.resolver.update_modifiers(shift=False)  # Reset
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -49,36 +69,36 @@ class TypingTutor(App):
 
             # Keyboard UI with initial visibility check
             kb_classes = "" if config.SHOW_QWERTY else "hidden"
-            with Vertical(id="keyboard-section", classes=kb_classes):
-                # Row 1
-                with Horizontal(classes="key-row"):
-                    for c in ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"]:
-                        yield Static(
-                            c,
-                            classes="key",
-                            id=f"key-{config.ID_MAP.get(c, c.lower())}",
-                        )
-                # Row 2
-                with Horizontal(classes="key-row"):
-                    for c in ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";"]:
-                        yield Static(
-                            c,
-                            classes="key",
-                            id=f"key-{config.ID_MAP.get(c, c.lower())}",
-                        )
-                # Row 3
-                with Horizontal(classes="key-row"):
-                    yield Static("SHIFT", classes="key special-key", id="key-shift-l")
-                    for c in ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"]:
-                        yield Static(
-                            c,
-                            classes="key",
-                            id=f"key-{config.ID_MAP.get(c, c.lower())}",
-                        )
-                    yield Static("SHIFT", classes="key special-key", id="key-shift-r")
 
-                with Horizontal(classes="key-row"):
-                    yield Static("SPACE", id="key-space", classes="key")
+            with Vertical(id="keyboard-section", classes=kb_classes):
+                for row in KEYBOARD_ROWS:
+                    with Horizontal(classes="key-row"):
+                        for key in row:
+                            # 1. Check explicit display map
+                            if key in DISPLAY_MAP:
+                                label = DISPLAY_MAP[key]
+                                special_class = (
+                                    " special-key"  # Add extra styling class if needed
+                                )
+                            else:
+                                # 2. Resolve via XKB
+                                # Note: self.resolver is available here? No, 'self' is the App instance.
+                                # compose() is an instance method, so yes.
+                                label = self.resolver.resolve(key.value) or ""
+                                # If label is a control char (like \x1b), fallback to name
+                                if label and (ord(label[0]) < 32):
+                                    label = key.name.replace("KEY_", "")
+                                special_class = ""
+
+                            # Upper case for consistency
+                            if len(label) == 1:
+                                label = label.upper()
+
+                            yield Static(
+                                label,
+                                classes=f"key{special_class}",
+                                id=f"key-{key.name}",
+                            )
 
             # Finger Guide UI with initial visibility check
             fg_classes = "" if config.SHOW_FINGERS else "hidden"
@@ -152,41 +172,64 @@ class TypingTutor(App):
         if self.profile is None:
             return
 
-        # If session is inactive, allow Enter to restart
         if not self.session_active:
             if event.key == "enter":
                 self.start_new_session()
             return
 
         if len(self.typed_text) >= len(self.target_text):
-            # This shouldn't happen often with auto-paging, but as a fallback
+            # Allow 'enter' or 's' to proceed only if finished
             if event.key == "enter":
                 self.load_next_chunk()
             elif event.key == "s":
                 self.end_drill_session()
             return
 
+        # Handle Backspace
+        if event.key == "backspace":
+            self.typed_text = self.typed_text[:-1]
+            self.refresh_display()
+            return
+
+        # 1. Identify which character was typed
         if event.key == "space":
             char = " "
         elif event.is_printable:
             char = event.character
         else:
-            char = None
+            return
 
-        if not self.session_start_time and char:
-            self.session_start_time = time.time()
+        # 2. Determine which PhysicalKey this corresponds to
+        if char == " ":
+            physical_pressed = PhysicalKey.KEY_SPACE
+        else:
+            physical_pressed = self.char_to_physical.get(char)
+            # Fallback: if we can't map it (e.g. complex compose), rely on char match?
+            # ideally physical_pressed shouldn't be None if it's in our map.
 
-        if event.key == "backspace":
-            self.typed_text = self.typed_text[:-1]
-        elif char and len(char) == 1:
-            idx = len(self.typed_text)
-            if idx < len(self.target_text):
-                if char == self.target_text[idx]:
+        # 3. Check against expected PhysicalKey
+        idx = len(self.typed_text)
+        if idx < len(self.target_keys):
+            expected_physical = self.target_keys[idx]
+
+            # Validation Logic:
+            # We strictly check physical key match.
+            # OR we check if the char matches (loose fallback for non-mapped keys)
+            is_correct = False
+            if physical_pressed and physical_pressed == expected_physical:
+                is_correct = True
+            elif char == self.target_text[idx]:
+                is_correct = True  # Char match fallback
+
+            if not self.session_start_time:
+                self.session_start_time = time.time()
+
+            if is_correct:
+                self.typed_text += char  # Add the *actual* char typed
+            else:
+                self.current_chunk_errors += 1
+                if not config.HARD_MODE:
                     self.typed_text += char
-                else:
-                    self.current_chunk_errors += 1
-                    if not config.HARD_MODE:
-                        self.typed_text += char
 
         self.refresh_display()
         self.check_chunk_completion()
@@ -249,30 +292,50 @@ class TypingTutor(App):
         self.query(".key").remove_class("active-key")
         self.query(".finger-body").remove_class("active-finger")
 
-        if len(self.typed_text) < len(self.target_text):
-            nxt = self.target_text[len(self.typed_text)]
-            key_lookup = nxt.lower()
-            kid_suffix = config.ID_MAP.get(key_lookup, key_lookup)
-            kid = f"#key-{kid_suffix}"
+        if len(self.typed_text) < len(self.target_keys):
+            physical_key = self.target_keys[len(self.typed_text)]
 
-            try:
-                self.query_one(kid).add_class("active-key")
-            except Exception:
-                pass
-
-            fid = config.FINGER_MAP.get(nxt.upper())
-            if nxt.isupper() and fid:
-                shift_id = "#key-shift-r" if fid.startswith("L") else "#key-shift-l"
-                try:
-                    self.query_one(shift_id).add_class("active-key")
-                except Exception:
-                    pass
-
+            # Highlight finger
+            fid = FINGER_MAP.get(physical_key)
             if fid:
                 try:
                     self.query_one(f"#{fid}").add_class("active-finger")
                 except Exception:
                     pass
+
+            # Highlight keyboard key
+            try:
+                self.query_one(f"#key-{physical_key.name}").add_class("active-key")
+            except Exception:
+                pass
+
+            # Highlight Shift if needed
+            # We need to know if the TARGET character requires shift on THIS layout.
+            # We resolve the key without shift, and with shift.
+            self.resolver.update_modifiers(shift=False)
+            base_char = self.resolver.resolve(physical_key.value)
+
+            self.resolver.update_modifiers(shift=True)
+            shifted_char = self.resolver.resolve(physical_key.value)
+            self.resolver.update_modifiers(shift=False)  # Reset
+
+            target_char = self.target_text[len(self.typed_text)]
+
+            # If the target char matches the shifted version but NOT the base version, we need shift.
+            if target_char == shifted_char and target_char != base_char:
+                # Determine which shift (left or right) based on hand
+                # If key is Left hand (L1-L4), use Right Shift.
+                # If key is Right hand (R1-R4), use Left Shift.
+                if fid:
+                    shift_id = (
+                        f"#key-{PhysicalKey.KEY_SHIFT_RIGHT.name}"
+                        if fid.startswith("L")
+                        else f"#key-{PhysicalKey.KEY_SHIFT_LEFT.name}"
+                    )
+                    try:
+                        self.query_one(shift_id).add_class("active-key")
+                    except Exception:
+                        pass
 
     def start_new_session(self) -> None:
         """Starts a new 5-minute drill session."""
@@ -388,26 +451,51 @@ class TypingTutor(App):
 
         dispatch = {
             "repeat": lambda: algos.single_key_repeat(
-                row_data["left"] + row_data["right"], shuffle=should_shuffle
+                row_data["left"] + row_data["right"],
+                shuffle=should_shuffle,
             ),
             "adjacent": lambda: algos.same_hand_adjacent(
-                row_data, shuffle=should_shuffle
+                row_data,
+                shuffle=should_shuffle,
             ),
             "alternating": lambda: algos.alternating_pairs(
-                row_data, shuffle=should_shuffle
+                row_data,
+                shuffle=should_shuffle,
             ),
-            "mirror": lambda: algos.mirror_pairs(row_data, shuffle=should_shuffle),
-            "rolls": lambda: algos.rolls(row_data, shuffle=should_shuffle),
+            "mirror": lambda: algos.mirror_pairs(
+                row_data,
+                shuffle=should_shuffle,
+            ),
+            "rolls": lambda: algos.rolls(
+                row_data,
+                shuffle=should_shuffle,
+            ),
             "pseudo": lambda: algos.pseudo_words(row_data),
         }
 
-        # Execute the mapped function or fallback to a basic scramble
         generator = dispatch.get(algo_type)
         if generator:
-            return generator()
+            physical_keys = generator()
+        else:
+            all_keys = row_data["left"] + row_data["right"]
+            physical_keys = [random.choice(all_keys) for _ in range(40)]
 
-        all_keys = row_data["left"] + row_data["right"]
-        return " ".join(["".join(random.choices(all_keys, k=4)) for _ in range(10)])
+        self.target_keys = physical_keys
+
+        # 🔤 Render via XKB
+        rendered = []
+        for key in physical_keys:
+            if key == PhysicalKey.KEY_SPACE:
+                rendered.append(" ")
+                continue
+
+            # Try unshifted first
+            self.resolver.update_modifiers(shift=False)
+            char = self.resolver.resolve(key.value)
+
+            rendered.append(char or "")
+
+        return "".join(rendered)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ SHOW_FINGERS = False
 HARD_MODE = True
 SHOW_STATS_ON_END = False
 DRILL_DURATION = 300  # Seconds (5 minutes)
-SHUFFLE_AFTER = 10  # Shuffle chunks after X repetitions
+SHUFFLE_AFTER = 5  # Shuffle chunks after X repetitions
 
 rows = ("home", "top", "bottom", "numbers")
 LESSONS = []
@@ -92,43 +92,3 @@ FINGER_HEIGHTS = {
 }
 
 MAX_FINGER_HEIGHT = max(dimensions.height for dimensions in FINGER_HEIGHTS.values())
-
-FINGER_MAP = {
-    # Top Row
-    "Q": "L1",
-    "W": "L2",
-    "E": "L3",
-    "R": "L4",
-    "T": "L4",
-    "Y": "R1",
-    "U": "R1",
-    "I": "R2",
-    "O": "R3",
-    "P": "R4",
-    "[": "R4",
-    "]": "R4",
-    # Home Row
-    "A": "L1",
-    "S": "L2",
-    "D": "L3",
-    "F": "L4",
-    "G": "L4",
-    "H": "R1",
-    "J": "R1",
-    "K": "R2",
-    "L": "R3",
-    ";": "R4",
-    "'": "R4",
-    # Bottom Row
-    "Z": "L1",
-    "X": "L2",
-    "C": "L3",
-    "V": "L4",
-    "B": "L4",
-    "N": "R1",
-    "M": "R1",
-    ",": "R2",
-    ".": "R3",
-    "/": "R4",
-    " ": "THUMB",
-}
