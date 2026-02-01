@@ -2,70 +2,6 @@ import random
 from keyboard import PhysicalKey
 
 
-LAYOUT = {
-    "home": {
-        "left": [
-            PhysicalKey.KEY_A,
-            PhysicalKey.KEY_S,
-            PhysicalKey.KEY_D,
-            PhysicalKey.KEY_F,
-        ],
-        "right": [
-            PhysicalKey.KEY_J,
-            PhysicalKey.KEY_K,
-            PhysicalKey.KEY_L,
-            PhysicalKey.KEY_SEMICOLON,
-        ],
-    },
-    "top": {
-        "left": [
-            PhysicalKey.KEY_Q,
-            PhysicalKey.KEY_W,
-            PhysicalKey.KEY_E,
-            PhysicalKey.KEY_R,
-        ],
-        "right": [
-            PhysicalKey.KEY_U,
-            PhysicalKey.KEY_I,
-            PhysicalKey.KEY_O,
-            PhysicalKey.KEY_P,
-        ],
-    },
-    "bottom": {
-        "left": [
-            PhysicalKey.KEY_Z,
-            PhysicalKey.KEY_X,
-            PhysicalKey.KEY_C,
-            PhysicalKey.KEY_V,
-        ],
-        "right": [
-            PhysicalKey.KEY_N,
-            PhysicalKey.KEY_M,
-            PhysicalKey.KEY_COMMA,
-            PhysicalKey.KEY_DOT,
-        ],
-    },
-    "numbers": {
-        "left": [
-            PhysicalKey.KEY_1,
-            PhysicalKey.KEY_2,
-            PhysicalKey.KEY_3,
-            PhysicalKey.KEY_4,
-            PhysicalKey.KEY_5,
-        ],
-        "right": [
-            PhysicalKey.KEY_6,
-            PhysicalKey.KEY_7,
-            PhysicalKey.KEY_8,
-            PhysicalKey.KEY_9,
-            PhysicalKey.KEY_0,
-            PhysicalKey.KEY_MINUS,
-            PhysicalKey.KEY_EQUAL,
-        ],
-    },
-}
-
-
 def single_key_repeat(keys: list[PhysicalKey], reps=4, shuffle=True):
     """Algorithm 1: Build muscle memory through isolation."""
     pool = keys[:]
@@ -169,6 +105,8 @@ def pseudo_words(row_keys, count=10):
 
 
 if __name__ == "__main__":
+    from keyboard import LAYOUT
+
     row_keys = LAYOUT["home"]
     print(single_key_repeat(row_keys["left"], reps=3))
     print(same_hand_adjacent(row_keys))

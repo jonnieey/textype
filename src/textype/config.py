@@ -9,46 +9,46 @@ SHUFFLE_AFTER = 5  # Shuffle chunks after X repetitions
 
 rows = ("home", "top", "bottom", "numbers")
 LESSONS = []
-for row in rows:
+for idx, row in enumerate(rows, start=1):
     LESSONS.extend(
         [
             {
-                "name": "1.1: Isolation",
+                "name": f"{idx}.1: Isolation",
                 "algo": "repeat",
                 "row": row,
                 "target_acc": 95,
                 "target_wpm": 10,
             },
             {
-                "name": "1.2: Adjacency",
+                "name": f"{idx}.2: Adjacency",
                 "algo": "adjacent",
                 "row": row,
                 "target_acc": 95,
                 "target_wpm": 10,
             },
             {
-                "name": "1.3: Alternating",
+                "name": f"{idx}.3: Alternating",
                 "algo": "alternating",
                 "row": row,
                 "target_acc": 92,
                 "target_wpm": 10,
             },
             {
-                "name": "1.4: Mirroring",
+                "name": f"{idx}.4: Mirroring",
                 "algo": "mirror",
                 "row": row,
                 "target_acc": 92,
                 "target_wpm": 10,
             },
             {
-                "name": "1.5: Rolling",
+                "name": f"{idx}.5: Rolling",
                 "algo": "rolls",
                 "row": row,
                 "target_acc": 90,
                 "target_wpm": 10,
             },
             {
-                "name": "1.6: Synthesis",
+                "name": f"{idx}.6: Synthesis",
                 "algo": "pseudo",
                 "row": row,
                 "target_acc": 95,

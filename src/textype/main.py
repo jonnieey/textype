@@ -12,7 +12,7 @@ from widgets import FingerColumn, StatsScreen, ProfileSelectScreen
 from models import UserProfile
 import generator_algorithms as algos
 from xkb_resolver import XKBResolver
-from keyboard import PhysicalKey, KEYBOARD_ROWS, FINGER_MAP, DISPLAY_MAP
+from keyboard import PhysicalKey, KEYBOARD_ROWS, FINGER_MAP, DISPLAY_MAP, LAYOUT
 
 
 class TypingTutor(App):
@@ -445,7 +445,7 @@ class TypingTutor(App):
         lesson = config.LESSONS[self.profile.current_lesson_index]
         algo_type = lesson.get("algo")
         row_key = lesson.get("row", "home")
-        row_data = algos.LAYOUT.get(row_key)
+        row_data = LAYOUT.get(row_key)
 
         should_shuffle = self.chunks_completed >= config.SHUFFLE_AFTER
 

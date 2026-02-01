@@ -205,3 +205,66 @@ DISPLAY_MAP = {
     PhysicalKey.KEY_SPACE: "SPACE",
     PhysicalKey.KEY_TILDE: "`",  # Explicit override if needed
 }
+
+LAYOUT = {
+    "home": {
+        "left": [
+            PhysicalKey.KEY_A,
+            PhysicalKey.KEY_S,
+            PhysicalKey.KEY_D,
+            PhysicalKey.KEY_F,
+        ],
+        "right": [
+            PhysicalKey.KEY_J,
+            PhysicalKey.KEY_K,
+            PhysicalKey.KEY_L,
+            PhysicalKey.KEY_SEMICOLON,
+        ],
+    },
+    "top": {
+        "left": [
+            PhysicalKey.KEY_Q,
+            PhysicalKey.KEY_W,
+            PhysicalKey.KEY_E,
+            PhysicalKey.KEY_R,
+        ],
+        "right": [
+            PhysicalKey.KEY_U,
+            PhysicalKey.KEY_I,
+            PhysicalKey.KEY_O,
+            PhysicalKey.KEY_P,
+        ],
+    },
+    "bottom": {
+        "left": [
+            PhysicalKey.KEY_Z,
+            PhysicalKey.KEY_X,
+            PhysicalKey.KEY_C,
+            PhysicalKey.KEY_V,
+        ],
+        "right": [
+            PhysicalKey.KEY_N,
+            PhysicalKey.KEY_M,
+            PhysicalKey.KEY_COMMA,
+            PhysicalKey.KEY_DOT,
+        ],
+    },
+    "numbers": {
+        "left": [
+            PhysicalKey.KEY_1,
+            PhysicalKey.KEY_2,
+            PhysicalKey.KEY_3,
+            PhysicalKey.KEY_4,
+            PhysicalKey.KEY_5,
+        ],
+        "right": [
+            PhysicalKey.KEY_6,
+            PhysicalKey.KEY_7,
+            PhysicalKey.KEY_8,
+            PhysicalKey.KEY_9,
+            PhysicalKey.KEY_0,
+            PhysicalKey.KEY_MINUS,
+            PhysicalKey.KEY_EQUAL,
+        ],
+    },
+}
