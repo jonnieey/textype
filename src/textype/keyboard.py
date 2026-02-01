@@ -1,8 +1,25 @@
-# keyboard.py
+"""Keyboard layout and physical key definitions for the Textype typing tutor.
+
+This module defines the physical keyboard layout, key mappings, and finger
+assignments used for visualization and practice generation.
+"""
 from enum import Enum
+from typing import Dict, List, TypedDict
 
 
 class PhysicalKey(Enum):
+    """Enumeration of physical keyboard keys with their evdev scancodes.
+
+    Each constant represents a physical key on a standard US QWERTY keyboard
+    with its corresponding evdev scancode value.
+
+    Example:
+        >>> PhysicalKey.KEY_A.value
+        30
+        >>> PhysicalKey.KEY_SPACE.name
+        'KEY_SPACE'
+    """
+
     # Number row
     KEY_ESCAPE = 1
     KEY_TILDE = 41
@@ -66,7 +83,7 @@ class PhysicalKey(Enum):
     KEY_SPACE = 57
 
 
-KEYBOARD_ROWS = [
+KEYBOARD_ROWS: List[List[PhysicalKey]] = [
     [
         PhysicalKey.KEY_ESCAPE,
         PhysicalKey.KEY_TILDE,
@@ -132,8 +149,13 @@ KEYBOARD_ROWS = [
         PhysicalKey.KEY_SPACE,
     ],
 ]
+"""Physical keyboard layout organized by rows for visualization.
 
-FINGER_MAP = {
+Each inner list represents a row of keys from left to right.
+Rows are: number row, top row, home row, bottom row, space bar row.
+"""
+
+FINGER_MAP: Dict[PhysicalKey, str] = {
     # Number row
     # Numbers
     PhysicalKey.KEY_TILDE: "L1",
@@ -193,9 +215,22 @@ FINGER_MAP = {
     PhysicalKey.KEY_SHIFT_RIGHT: "R4",
     PhysicalKey.KEY_SPACE: "THUMB",
 }
+"""Mapping from physical keys to finger assignments for touch typing.
+
+Keys:
+- L1-L4: Left hand fingers (pinky to index)
+- R1-R4: Right hand fingers (index to pinky)
+- THUMB: Space bar thumb
+
+Example:
+    >>> FINGER_MAP[PhysicalKey.KEY_A]
+    'L1'
+    >>> FINGER_MAP[PhysicalKey.KEY_SPACE]
+    'THUMB'
+"""
 
 # Special Display Labels for Control Keys
-DISPLAY_MAP = {
+DISPLAY_MAP: Dict[PhysicalKey, str] = {
     PhysicalKey.KEY_ESCAPE: "ESC",
     PhysicalKey.KEY_TAB: "TAB",
     PhysicalKey.KEY_BACKSPACE: "BACK",
@@ -205,8 +240,26 @@ DISPLAY_MAP = {
     PhysicalKey.KEY_SPACE: "SPACE",
     PhysicalKey.KEY_TILDE: "`",  # Explicit override if needed
 }
+"""Special display labels for non-character keys.
 
-LAYOUT = {
+Used to show readable labels for control keys instead of their
+XKB-resolved characters (which may be empty or unprintable).
+"""
+
+
+class RowLayout(TypedDict):
+    """Type definition for keyboard row layout data.
+
+    Attributes:
+        left: List of physical keys for left hand
+        right: List of physical keys for right hand
+    """
+
+    left: List[PhysicalKey]
+    right: List[PhysicalKey]
+
+
+LAYOUT: Dict[str, RowLayout] = {
     "home": {
         "left": [
             PhysicalKey.KEY_A,
@@ -268,3 +321,20 @@ LAYOUT = {
         ],
     },
 }
+"""Keyboard layout organized by rows for practice generation.
+
+Each entry represents a keyboard row with left and right hand keys
+separated for touch typing practice patterns.
+
+Keys:
+- "home": Home row keys (ASDF JKL;)
+- "top": Top row keys (QWER UIOP)
+- "bottom": Bottom row keys (ZXCV NM,.)
+- "numbers": Number row keys (12345 67890-=)
+
+Example:
+    >>> LAYOUT["home"]["left"]
+    [<PhysicalKey.KEY_A: 30>, <PhysicalKey.KEY_S: 31>, ...]
+    >>> LAYOUT["numbers"]["right"]
+    [<PhysicalKey.KEY_6: 7>, <PhysicalKey.KEY_7: 8>, ...]
+"""

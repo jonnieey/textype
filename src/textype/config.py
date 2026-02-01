@@ -1,14 +1,64 @@
+"""Configuration module for the Textype typing tutor application.
+
+This module contains all configuration constants, lesson definitions, and
+UI settings used throughout the application.
+"""
 from collections import namedtuple
+from typing import Dict, List, Tuple, TypedDict
 
-SHOW_QWERTY = False
-SHOW_FINGERS = False
-HARD_MODE = True
-SHOW_STATS_ON_END = False
-DRILL_DURATION = 300  # Seconds (5 minutes)
-SHUFFLE_AFTER = 5  # Shuffle chunks after X repetitions
 
-rows = ("home", "top", "bottom", "numbers")
-LESSONS = []
+# ============================================================================
+# UI Configuration
+# ============================================================================
+
+SHOW_QWERTY: bool = False
+"""Whether to show the QWERTY keyboard visualization by default."""
+
+SHOW_FINGERS: bool = False
+"""Whether to show the finger guide visualization by default."""
+
+HARD_MODE: bool = True
+"""Whether to enable hard mode (errors prevent progress)."""
+
+SHOW_STATS_ON_END: bool = False
+"""Whether to show statistics screen automatically after each drill."""
+
+DRILL_DURATION: int = 300
+"""Duration of each typing drill in seconds (5 minutes)."""
+
+SHUFFLE_AFTER: int = 5
+"""Number of repetitions before shuffling practice patterns."""
+
+
+# ============================================================================
+# Lesson Definitions
+# ============================================================================
+
+
+class LessonDict(TypedDict):
+    """Type definition for lesson configuration dictionaries.
+
+    Attributes:
+        name: Display name of the lesson
+        algo: Algorithm identifier for text generation
+        row: Keyboard row to focus on
+        target_acc: Minimum accuracy percentage required to pass
+        target_wpm: Minimum words per minute required to pass
+    """
+
+    name: str
+    algo: str
+    row: str
+    target_acc: int
+    target_wpm: int
+
+
+rows: Tuple[str, ...] = ("home", "top", "bottom", "numbers")
+"""Available keyboard rows for lessons."""
+
+LESSONS: List[LessonDict] = []
+"""List of all typing lessons with progression logic."""
+
 for idx, row in enumerate(rows, start=1):
     LESSONS.extend(
         [
@@ -57,14 +107,25 @@ for idx, row in enumerate(rows, start=1):
         ]
     )
 
-SENTENCES = [
+
+# ============================================================================
+# Practice Content
+# ============================================================================
+
+SENTENCES: List[str] = [
     "The quick brown fox jumps over the lazy dog",
     "Practice until the motions become second nature",
     "Reliance on sight is the enemy of speed",
     "Fluidity matters more than raw velocity",
 ]
+"""Default practice sentences for non-lesson typing."""
 
-ID_MAP = {
+
+# ============================================================================
+# Character Mapping
+# ============================================================================
+
+ID_MAP: Dict[str, str] = {
     " ": "space",
     ";": "semicolon",
     ",": "comma",
@@ -76,10 +137,22 @@ ID_MAP = {
     "-": "minus",
     "=": "equals",
 }
+"""Mapping from characters to CSS-friendly identifiers."""
+
+
+# ============================================================================
+# Finger Visualization
+# ============================================================================
 
 FingerDimensions = namedtuple("FingerDimensions", ["height", "width"])
+"""Dimensions for finger visualization columns.
 
-FINGER_HEIGHTS = {
+Attributes:
+    height: Vertical height of the finger column
+    width: Horizontal width of the finger column
+"""
+
+FINGER_HEIGHTS: Dict[str, FingerDimensions] = {
     "L1": FingerDimensions(4, 7),
     "L2": FingerDimensions(6, 7),
     "L3": FingerDimensions(7, 7),
@@ -90,5 +163,15 @@ FINGER_HEIGHTS = {
     "R3": FingerDimensions(6, 7),
     "R4": FingerDimensions(4, 7),
 }
+"""Dimensions for each finger's visualization column.
 
-MAX_FINGER_HEIGHT = max(dimensions.height for dimensions in FINGER_HEIGHTS.values())
+Keys correspond to finger identifiers:
+- L1-L4: Left hand fingers (pinky to index)
+- R1-R4: Right hand fingers (index to pinky)
+- THUMB: Space bar thumb
+"""
+
+MAX_FINGER_HEIGHT: int = max(
+    dimensions.height for dimensions in FINGER_HEIGHTS.values()
+)
+"""Maximum height among all finger columns for alignment purposes."""

@@ -1,11 +1,16 @@
-# main.py
+"""Main application module for the Textype typing tutor.
 
+This module contains the main TypingTutor application class that orchestrates
+the typing practice sessions, UI interactions, and user progress tracking.
+"""
 import time
 import random
+from typing import Optional, Dict, List
 from textual.app import App, ComposeResult
 from textual.widgets import Header, Footer, Static
 from textual.containers import Vertical, Horizontal
 from textual.binding import Binding
+from textual import events
 
 import config
 from widgets import FingerColumn, StatsScreen, ProfileSelectScreen
@@ -16,9 +21,29 @@ from keyboard import PhysicalKey, KEYBOARD_ROWS, FINGER_MAP, DISPLAY_MAP, LAYOUT
 
 
 class TypingTutor(App):
+    """Main Textype typing tutor application.
+
+    A Textual-based TUI application for touch typing practice with
+    progressive lessons, real-time feedback, and performance tracking.
+
+    Attributes:
+        target_text: The text the user should type
+        typed_text: The text the user has typed so far
+        session_start_time: When the current session started
+        session_active: Whether a session is currently in progress
+        cumulative_typed_chars: Total characters typed in session
+        cumulative_errors: Total errors made in session
+        current_chunk_errors: Errors in current text chunk
+        chunks_completed: Number of chunks completed in session
+        show_stats_pref: Whether to show stats screen automatically
+        profile: Current user profile
+        resolver: XKB resolver for layout mapping
+        target_keys: Physical keys corresponding to target text
+        char_to_physical: Mapping from characters to physical keys
+    """
+
     CSS_PATH = "styles.tcss"
 
-    # Added F2 binding for fingers
     BINDINGS = [
         Binding("f1", "toggle_keyboard", "Toggle Keys"),
         Binding("f2", "toggle_fingers", "Toggle Fingers"),
@@ -27,27 +52,32 @@ class TypingTutor(App):
         Binding("escape", "quit", "Quit"),
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the typing tutor application.
+
+        Sets up session state, XKB resolver, and character-to-physical
+        key mapping for the current keyboard layout.
+        """
         super().__init__()
         self.target_text = ""
         self.typed_text = ""
 
         # Session state
-        self.session_start_time = None
-        self.session_active = False
-        self.cumulative_typed_chars = 0
-        self.cumulative_errors = 0
-        self.current_chunk_errors = 0
-        self.chunks_completed = 0  # Track chunks for shuffle logic
+        self.session_start_time: Optional[float] = None
+        self.session_active: bool = False
+        self.cumulative_typed_chars: int = 0
+        self.cumulative_errors: int = 0
+        self.current_chunk_errors: int = 0
+        self.chunks_completed: int = 0  # Track chunks for shuffle logic
 
-        self.show_stats_pref = config.SHOW_STATS_ON_END
-        self.profile = None
-        self.resolver = XKBResolver()
-        self.target_keys: list[PhysicalKey] = []
+        self.show_stats_pref: bool = config.SHOW_STATS_ON_END
+        self.profile: Optional[UserProfile] = None
+        self.resolver: XKBResolver = XKBResolver()
+        self.target_keys: List[PhysicalKey] = []
 
         # Build Reverse Map: Character -> Physical Key (for validation)
         # Note: This is an approximation. A robust solution might iterate all keycodes.
-        self.char_to_physical = {}
+        self.char_to_physical: Dict[str, PhysicalKey] = {}
         for key in PhysicalKey:
             # Check unmodified
             char = self.resolver.resolve(key.value)
@@ -62,6 +92,14 @@ class TypingTutor(App):
             self.resolver.update_modifiers(shift=False)  # Reset
 
     def compose(self) -> ComposeResult:
+        """Compose the main application UI.
+
+        Creates the header, statistics bar, typing area, keyboard visualization,
+        finger guide, and footer.
+
+        Yields:
+            Widgets for the application UI
+        """
         yield Header()
         with Vertical(id="main-grid"):
             yield Static("", id="stats-bar")
@@ -112,10 +150,19 @@ class TypingTutor(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        """Initialize the application after mounting.
+
+        Shows the profile selection screen and starts the timer update interval.
+        """
         self.action_switch_profile()
         self.set_interval(0.5, self.update_timer)
 
     def update_timer(self) -> None:
+        """Update the session timer and check for session completion.
+
+        Called every 0.5 seconds to update the display and end the session
+        when the drill duration is reached.
+        """
         if self.session_active and self.session_start_time:
             elapsed = time.time() - self.session_start_time
             if elapsed >= config.DRILL_DURATION:
@@ -125,18 +172,34 @@ class TypingTutor(App):
 
     # Toggles for UI elements
     def action_toggle_keyboard(self) -> None:
+        """Toggle keyboard visualization visibility.
+
+        Bound to F1 key.
+        """
         self.query_one("#keyboard-section").toggle_class("hidden")
 
     def action_toggle_fingers(self) -> None:
+        """Toggle finger guide visualization visibility.
+
+        Bound to F2 key.
+        """
         self.query_one("#finger-guide-wrapper").toggle_class("hidden")
 
     def action_toggle_stats_pref(self) -> None:
-        """Toggle whether stats show automatically at the end."""
+        """Toggle whether stats show automatically at the end.
+
+        Bound to F3 key.
+        """
         self.show_stats_pref = not self.show_stats_pref
         status = "ON" if self.show_stats_pref else "OFF"
         self.notify(f"Auto-Stats: {status}")
 
     def action_switch_profile(self) -> None:
+        """Switch or create a user profile.
+
+        Bound to F4 key. Shows the profile selection screen.
+        """
+
         def set_profile(profile: UserProfile):
             if profile:
                 self.profile = profile
@@ -147,7 +210,11 @@ class TypingTutor(App):
         self.push_screen(ProfileSelectScreen(), set_profile)
 
     def action_quit(self) -> None:
-        """Saves current UI configuration to the profile before exiting."""
+        """Save configuration and exit the application.
+
+        Bound to Escape key. Saves current UI configuration to the
+        profile before exiting.
+        """
         if self.profile:
             kb_visible = not self.query_one("#keyboard-section").has_class("hidden")
             fg_visible = not self.query_one("#finger-guide-wrapper").has_class("hidden")
@@ -168,7 +235,15 @@ class TypingTutor(App):
         # 4. Standard exit
         self.exit()
 
-    def on_key(self, event) -> None:
+    def on_key(self, event: events.Key) -> None:
+        """Handle keyboard input during typing practice.
+
+        Processes key presses for typing validation, navigation, and
+        session control.
+
+        Args:
+            event: Key event from Textual
+        """
         if self.profile is None:
             return
 
@@ -235,6 +310,11 @@ class TypingTutor(App):
         self.check_chunk_completion()
 
     def refresh_display(self) -> None:
+        """Refresh the UI with current session state.
+
+        Updates the statistics bar, typing area highlighting, and
+        visual feedback for the current key and finger.
+        """
         # Time Calculation
         if self.session_start_time and self.session_active:
             elapsed = time.time() - self.session_start_time
@@ -338,7 +418,11 @@ class TypingTutor(App):
                         pass
 
     def start_new_session(self) -> None:
-        """Starts a new 5-minute drill session."""
+        """Start a new 5-minute drill session.
+
+        Resets session state and generates new practice text based on
+        the current lesson or default sentences.
+        """
         self.session_active = True
         self.session_start_time = None
         self.cumulative_typed_chars = 0
@@ -355,7 +439,11 @@ class TypingTutor(App):
         self.refresh_display()
 
     def load_next_chunk(self) -> None:
-        """Loads the next chunk of text within the same session."""
+        """Load the next chunk of text within the same session.
+
+        Updates cumulative statistics and generates new practice text
+        when the current chunk is completed.
+        """
         self.cumulative_typed_chars += len(self.typed_text)
         self.cumulative_errors += self.current_chunk_errors
         self.chunks_completed += 1
@@ -370,13 +458,21 @@ class TypingTutor(App):
         self.refresh_display()
 
     def check_chunk_completion(self) -> None:
+        """Check if the current text chunk has been completed.
+
+        Automatically loads the next chunk if the session is still active.
+        """
         if len(self.typed_text) == len(self.target_text):
             # If session is still active, load next chunk
             if self.session_active:
                 self.load_next_chunk()
 
     def end_drill_session(self) -> None:
-        """Ends the session and shows stats."""
+        """End the current session and show statistics.
+
+        Stops the session timer and evaluates performance against
+        lesson requirements.
+        """
         self.session_active = False
 
         # Add final stats
@@ -386,6 +482,11 @@ class TypingTutor(App):
         self.evaluate_drill_and_show_stats()
 
     def evaluate_drill_and_show_stats(self) -> None:
+        """Evaluate drill performance and show results.
+
+        Calculates final WPM and accuracy, checks if lesson requirements
+        are met, updates user progress, and shows statistics screen.
+        """
         # Calculate final stats
         elapsed = config.DRILL_DURATION / 60  # Normalized to full duration
 
@@ -428,8 +529,11 @@ class TypingTutor(App):
                 "[reverse] PRESS ENTER TO START NEXT SESSION [/]"
             )
 
-    def apply_profile_config(self):
-        """Applies the configuration saved in the user's profile."""
+    def apply_profile_config(self) -> None:
+        """Apply the configuration saved in the user's profile.
+
+        Updates UI visibility and preferences based on profile overrides.
+        """
         overrides = self.profile.config_overrides
         self.show_stats_pref = overrides.get("SHOW_STATS_ON_END", True)
 
@@ -442,6 +546,18 @@ class TypingTutor(App):
         )
 
     def generate_lesson_text(self) -> str:
+        """Generate practice text for the current lesson.
+
+        Selects the appropriate algorithm based on lesson configuration
+        and generates a sequence of physical keys, then converts them
+        to characters using the current keyboard layout.
+
+        Returns:
+            String of characters to type for the current lesson
+
+        Raises:
+            KeyError: If row_key is not found in LAYOUT
+        """
         lesson = config.LESSONS[self.profile.current_lesson_index]
         algo_type = lesson.get("algo")
         row_key = lesson.get("row", "home")
