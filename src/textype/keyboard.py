@@ -331,7 +331,69 @@ LAYOUT: Dict[str, RowLayout] = {
             PhysicalKey.KEY_QUOTE,
         ],
     },
+    "focus_e_i": {
+        "left": [PhysicalKey.KEY_E],
+        "right": [PhysicalKey.KEY_I],
+    },
+    "focus_r_u": {
+        "left": [PhysicalKey.KEY_R],
+        "right": [PhysicalKey.KEY_U],
+    },
+    "focus_t_o": {
+        "left": [PhysicalKey.KEY_T],
+        "right": [PhysicalKey.KEY_O],
+    },
+    "focus_c_comma": {
+        "left": [PhysicalKey.KEY_C],
+        "right": [PhysicalKey.KEY_COMMA],
+    },
+    "focus_g_h": {
+        "left": [PhysicalKey.KEY_G],
+        "right": [PhysicalKey.KEY_H],
+    },
+    "focus_v_n_slash": {
+        "left": [PhysicalKey.KEY_V],
+        "right": [PhysicalKey.KEY_N, PhysicalKey.KEY_SLASH],
+    },
+    "focus_w_m": {
+        "left": [PhysicalKey.KEY_W],
+        "right": [PhysicalKey.KEY_M],
+    },
+    "focus_q_p": {
+        "left": [PhysicalKey.KEY_Q],
+        "right": [PhysicalKey.KEY_P],
+    },
+    "focus_b_y": {
+        "left": [PhysicalKey.KEY_B],
+        "right": [PhysicalKey.KEY_Y],
+    },
+    "focus_z_x": {
+        "left": [PhysicalKey.KEY_Z],
+        "right": [PhysicalKey.KEY_X],
+    },
+    "focus_shift_period": {
+        "left": [
+            PhysicalKey.KEY_A,
+            PhysicalKey.KEY_S,
+            PhysicalKey.KEY_D,
+            PhysicalKey.KEY_F,
+            PhysicalKey.KEY_E,
+            PhysicalKey.KEY_R,
+            PhysicalKey.KEY_T,
+        ],
+        "right": [
+            PhysicalKey.KEY_J,
+            PhysicalKey.KEY_K,
+            PhysicalKey.KEY_L,
+            PhysicalKey.KEY_SEMICOLON,
+            PhysicalKey.KEY_I,
+            PhysicalKey.KEY_U,
+            PhysicalKey.KEY_O,
+            PhysicalKey.KEY_DOT,
+        ],
+    },
 }
+
 """Keyboard layout organized by rows for practice generation.
 
 Each entry represents a keyboard row with left and right hand keys
