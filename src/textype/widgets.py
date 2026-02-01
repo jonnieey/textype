@@ -8,7 +8,6 @@ from textual.app import ComposeResult
 from textual.widgets import Static, Label, Button, Input, ListItem, ListView
 from textual.containers import Container, Center, Middle
 from textual.screen import Screen
-from textual import events
 from config import MAX_FINGER_HEIGHT
 from models import UserProfile
 
@@ -67,18 +66,22 @@ class StatsScreen(Screen):
     Shows WPM, accuracy, and error count after a drill session completes.
     """
 
-    def __init__(self, wpm: int, accuracy: int, errors: int) -> None:
+    def __init__(
+        self, wpm: int, accuracy: int, errors: int, passed: bool = True
+    ) -> None:
         """Initialize the statistics screen.
 
         Args:
             wpm: Words per minute achieved
             accuracy: Accuracy percentage
             errors: Number of errors made
+            passed: Whether the lesson requirements were met
         """
         super().__init__()
         self.wpm = wpm
         self.accuracy = accuracy
         self.errors = errors
+        self.passed = passed
 
     def compose(self) -> ComposeResult:
         """Compose the statistics screen.
@@ -92,11 +95,16 @@ class StatsScreen(Screen):
                 yield Label(f"WPM: {self.wpm}", classes="stat-line")
                 yield Label(f"Accuracy: {self.accuracy}%", classes="stat-line")
                 yield Label(f"Errors: {self.errors}", classes="stat-line")
-                yield Button("Next Drill (Enter)", variant="primary", id="next-button")
+                yield Button("Repeat Lesson", variant="default", id="repeat-button")
+                if self.passed:
+                    yield Button("Next Drill", variant="primary", id="next-button")
 
     def on_mount(self) -> None:
-        """Focus the next button when screen mounts."""
-        self.query_one("#next-button").focus()
+        """Focus the appropriate button when screen mounts."""
+        if self.passed:
+            self.query_one("#next-button").focus()
+        else:
+            self.query_one("#repeat-button").focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press to dismiss screen.
@@ -104,16 +112,10 @@ class StatsScreen(Screen):
         Args:
             event: Button press event
         """
-        self.dismiss(True)
-
-    def on_key(self, event: events.Key) -> None:
-        """Handle key press to dismiss screen.
-
-        Args:
-            event: Key event
-        """
-        if event.key == "enter":
-            self.dismiss(True)
+        if event.button.id == "repeat-button":
+            self.dismiss("repeat")
+        else:
+            self.dismiss("next")
 
 
 class ProfileSelectScreen(Screen):

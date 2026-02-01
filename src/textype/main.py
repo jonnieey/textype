@@ -75,6 +75,8 @@ class TypingTutor(App):
         self.profile: Optional[UserProfile] = None
         self.resolver: XKBResolver = XKBResolver()
         self.target_keys: List[PhysicalKey] = []
+        self.last_drill_passed: bool = False
+        self.previous_lesson_index: int = 0
 
         # Build Reverse Map: Character -> Physical Key (for validation)
         # Note: This is an approximation. A robust solution might iterate all keycodes.
@@ -251,6 +253,8 @@ class TypingTutor(App):
         if not self.session_active:
             if event.key == "enter":
                 self.start_new_session()
+            elif event.key == "r":
+                self.repeat_lesson()
             return
 
         if len(self.typed_text) >= len(self.target_text):
@@ -442,6 +446,20 @@ class TypingTutor(App):
         self.typed_text = ""
         self.refresh_display()
 
+    def repeat_lesson(self) -> None:
+        """Repeat the current lesson without progressing.
+
+        If the last drill passed and advanced to next lesson, decrement lesson index
+        to stay on the same lesson.
+        """
+        if (
+            self.profile
+            and self.profile.current_lesson_index > self.previous_lesson_index
+        ):
+            # Decrement index to stay on the same lesson
+            self.profile.current_lesson_index = self.previous_lesson_index
+        self.start_new_session()
+
     def load_next_chunk(self) -> None:
         """Load the next chunk of text within the same session.
 
@@ -503,8 +521,10 @@ class TypingTutor(App):
 
         passed = False
         if self.profile:
+            self.previous_lesson_index = self.profile.current_lesson_index
             lesson = config.LESSONS[self.profile.current_lesson_index]
             passed = acc >= lesson["target_acc"] and wpm >= lesson["target_wpm"]
+            self.last_drill_passed = passed
 
             if passed:
                 self.profile.current_lesson_index += 1
@@ -523,14 +543,23 @@ class TypingTutor(App):
 
         if self.show_stats_pref:
             self.push_screen(
-                StatsScreen(wpm, acc, self.cumulative_errors),
-                lambda _: self.start_new_session(),
+                StatsScreen(wpm, acc, self.cumulative_errors, passed),
+                lambda result: self.repeat_lesson()
+                if result == "repeat"
+                else self.start_new_session(),
             )
         else:
+            if passed:
+                action_text = (
+                    "[reverse] PRESS ENTER TO START NEXT SESSION [/]\n"
+                    "[reverse] PRESS R TO REPEAT LESSON [/]"
+                )
+            else:
+                action_text = "[reverse] PRESS ENTER TO REPEAT LESSON [/]"
             self.query_one("#typing-area").update(
                 f"\n[#9ece6a]SESSION COMPLETE[/]\n\n"
                 f"WPM: {wpm} | ACC: {acc}% | ERRORS: {self.cumulative_errors}\n\n"
-                "[reverse] PRESS ENTER TO START NEXT SESSION [/]"
+                f"{action_text}"
             )
 
     def apply_profile_config(self) -> None:
