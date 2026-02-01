@@ -99,3 +99,38 @@ class UserProfile:
             for f in os.listdir(PROFILES_DIR)
             if f.endswith(".json")
         ]
+
+    @classmethod
+    def delete(cls, name: str) -> bool:
+        """Delete a user profile from disk.
+
+        Args:
+            name: Name of the profile to delete
+
+        Returns:
+            True if profile was deleted, False if profile didn't exist
+
+        Example:
+            >>> UserProfile.delete("old_user")
+            True
+        """
+        path = os.path.join(PROFILES_DIR, f"{name.lower()}.json")
+        if os.path.exists(path):
+            os.remove(path)
+            return True
+        return False
+
+    def get_current_lesson_name(self) -> str:
+        """Get the display name of the current lesson.
+
+        Returns:
+            Lesson name string, or "Unknown" if index out of range.
+        """
+        try:
+            import config
+
+            if self.current_lesson_index < len(config.LESSONS):
+                return config.LESSONS[self.current_lesson_index]["name"]
+        except (ImportError, IndexError):
+            pass
+        return "Unknown"

@@ -4,11 +4,13 @@ This module defines custom widgets and modal screens used in the
 Textype application, including finger visualization, statistics display,
 and profile selection.
 """
+from typing import Optional
 from textual.app import ComposeResult
 from textual.widgets import Static, Label, Button, Input, ListItem, ListView
-from textual.containers import Container, Center, Middle
+from textual.containers import Container, Center, Middle, Horizontal
 from textual.screen import Screen
-from config import MAX_FINGER_HEIGHT
+from textual.binding import Binding
+import config
 from models import UserProfile
 
 
@@ -47,7 +49,7 @@ class FingerColumn(Container):
             Widgets for the finger column
         """
         spacer = Static("")
-        spacer.styles.height = MAX_FINGER_HEIGHT - self.height
+        spacer.styles.height = config.MAX_FINGER_HEIGHT - self.height
         yield spacer
 
         body = Static(
@@ -95,9 +97,10 @@ class StatsScreen(Screen):
                 yield Label(f"WPM: {self.wpm}", classes="stat-line")
                 yield Label(f"Accuracy: {self.accuracy}%", classes="stat-line")
                 yield Label(f"Errors: {self.errors}", classes="stat-line")
-                yield Button("Repeat Lesson", variant="default", id="repeat-button")
-                if self.passed:
-                    yield Button("Next Drill", variant="primary", id="next-button")
+                with Horizontal():
+                    yield Button("Repeat Lesson", variant="default", id="repeat-button")
+                    if self.passed:
+                        yield Button("Next Drill", variant="primary", id="next-button")
 
     def on_mount(self) -> None:
         """Focus the appropriate button when screen mounts."""
@@ -118,12 +121,82 @@ class StatsScreen(Screen):
             self.dismiss("next")
 
 
+class ProfileInfoScreen(Screen):
+    """Screen displaying profile information and management options."""
+
+    def __init__(self, profile: UserProfile) -> None:
+        """Initialize the profile info screen.
+
+        Args:
+            profile: The user profile to display
+        """
+        super().__init__()
+        self.profile = profile
+
+    def compose(self) -> ComposeResult:
+        """Compose the profile info screen.
+
+        Yields:
+            Widgets for profile information and actions
+        """
+        with Center():
+            with Middle(id="profile-info-modal"):
+                yield Label(f"PROFILE: {self.profile.name.upper()}", id="stats-title")
+                yield Label(
+                    f"Current Lesson: {self.profile.get_current_lesson_name()}",
+                    classes="stat-line",
+                )
+                yield Label(
+                    f"WPM Record: {self.profile.wpm_record}", classes="stat-line"
+                )
+                yield Label(
+                    f"Total Drills: {self.profile.total_drills}", classes="stat-line"
+                )
+                with Horizontal():
+                    yield Button("Delete Profile", variant="error", id="delete-button")
+                    yield Button("Back", variant="primary", id="back-button")
+
+    def on_mount(self) -> None:
+        """Focus the back button when screen mounts."""
+        self.query_one("#back-button").focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press to dismiss screen.
+
+        Args:
+            event: Button press event
+        """
+        if event.button.id == "delete-button":
+            # Show confirmation screen
+            def handle_confirmation(result: tuple):
+                action, confirmed = result
+                if action == "confirm" and confirmed:
+                    self.dismiss(("delete", self.profile.name))
+                # else do nothing (stay on screen)
+
+            self.app.push_screen(
+                ConfirmationScreen(f"Delete profile '{self.profile.name}'?"),
+                handle_confirmation,
+            )
+        else:
+            self.dismiss(("back", None))
+
+
 class ProfileSelectScreen(Screen):
     """Screen to select or create a user profile.
 
     Allows users to choose an existing profile or create a new one
     before starting typing practice.
     """
+
+    BINDINGS = [
+        Binding("delete", "delete_profile", "Delete Selected Profile"),
+    ]
+
+    def __init__(self) -> None:
+        """Initialize the profile selection screen."""
+        super().__init__()
+        self.selected_profile: Optional[str] = None
 
     def compose(self) -> ComposeResult:
         """Compose the profile selection screen.
@@ -138,11 +211,20 @@ class ProfileSelectScreen(Screen):
                     placeholder="Enter new profile name...", id="new-profile-input"
                 )
                 yield ListView(id="profile-list")
-                yield Label("Press Enter to Select/Create", classes="stat-line")
+                yield Label(
+                    "Press Enter to Select/Create • Press Delete to delete selected profile",
+                    classes="stat-line",
+                )
+                yield Button(
+                    "Delete Selected Profile",
+                    variant="error",
+                    id="delete-button",
+                    disabled=True,
+                )
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         """Initialize the screen with profile list and focus."""
-        self.refresh_list()
+        await self.refresh_list()
         lst = self.query_one("#profile-list")
         if lst.children:
             lst.focus()
@@ -150,13 +232,98 @@ class ProfileSelectScreen(Screen):
         else:
             self.query_one("#new-profile-input").focus()
 
-    def refresh_list(self) -> None:
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        """Update selected profile when list item is highlighted.
+
+        Args:
+            event: List view highlight event
+        """
+        if event.item is None:
+            self.selected_profile = None
+            delete_button = self.query_one("#delete-button")
+            delete_button.disabled = True
+            return
+
+        self.selected_profile = event.item.id
+        delete_button = self.query_one("#delete-button")
+        delete_button.disabled = False
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        """Handle existing profile selection.
+
+        Args:
+            event: List view selection event
+        """
+        profile = UserProfile.load(event.item.id)
+        self.dismiss(profile)
+
+    def action_delete_profile(self) -> None:
+        """Handle delete key press to delete selected profile."""
+        if self.selected_profile:
+            delete_button = self.query_one("#delete-button")
+            if not delete_button.disabled:
+                # Simulate delete button press
+                self.on_button_pressed(Button.Pressed(delete_button))
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press for delete button.
+
+        Args:
+            event: Button press event
+        """
+        if event.button.id == "delete-button":
+            if self.selected_profile:
+                # Show confirmation screen
+                def handle_confirmation(result: tuple):
+                    action, confirmed = result
+                    if action == "confirm" and confirmed:
+                        # Delete the profile
+                        deleted = UserProfile.delete(self.selected_profile)
+                        if deleted:
+                            self.notify(f"Profile '{self.selected_profile}' deleted.")
+                            # Clear current profile if it matches the deleted one
+                            if (
+                                hasattr(self.app, "profile")
+                                and self.app.profile
+                                and self.app.profile.name == self.selected_profile
+                            ):
+                                self.app.profile = None
+                                self.notify(
+                                    "Current profile cleared. Please select a new profile."
+                                )
+                            # Refresh list and reset selection
+                            self.selected_profile = None
+                            delete_button = self.query_one("#delete-button")
+                            delete_button.disabled = True
+
+                            async def refresh_and_update_focus():
+                                await self.refresh_list()
+                                lst = self.query_one("#profile-list")
+                                if lst.children:
+                                    lst.focus()
+                                    lst.index = 0
+                                else:
+                                    self.query_one("#new-profile-input").focus()
+
+                            self.app.run_worker(refresh_and_update_focus)
+                        else:
+                            self.notify(
+                                f"Failed to delete profile '{self.selected_profile}'.",
+                                severity="error",
+                            )
+
+                self.app.push_screen(
+                    ConfirmationScreen(f"Delete profile '{self.selected_profile}'?"),
+                    handle_confirmation,
+                )
+
+    async def refresh_list(self) -> None:
         """Refresh the list of available profiles.
 
         Loads profiles from disk and populates the list view.
         """
         lst = self.query_one("#profile-list")
-        lst.clear()
+        await lst.clear()
         for p in UserProfile.list_profiles():
             lst.append(ListItem(Label(p.capitalize()), id=p))
 
@@ -172,11 +339,46 @@ class ProfileSelectScreen(Screen):
             profile.save()
             self.dismiss(profile)
 
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        """Handle existing profile selection.
+
+class ConfirmationScreen(Screen):
+    """A simple confirmation dialog screen.
+
+    Returns either ("confirm", True) or ("confirm", False) based on user choice.
+    """
+
+    def __init__(self, message: str) -> None:
+        """Initialize confirmation screen.
 
         Args:
-            event: List view selection event
+            message: The message to display
         """
-        profile = UserProfile.load(event.item.id)
-        self.dismiss(profile)
+        super().__init__()
+        self.message = message
+
+    def compose(self) -> ComposeResult:
+        """Compose the confirmation screen.
+
+        Yields:
+            Widgets for confirmation dialog
+        """
+        with Center():
+            with Middle(id="confirmation-modal"):
+                yield Label(self.message, id="confirmation-title")
+                with Horizontal():
+                    yield Button("Yes", variant="error", id="yes-button")
+                    yield Button("No", variant="primary", id="no-button")
+
+    def on_mount(self) -> None:
+        """Focus the No button when screen mounts."""
+        self.query_one("#no-button").focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button press to dismiss screen.
+
+        Args:
+            event: Button press event
+        """
+        if event.button.id == "yes-button":
+            self.dismiss(("confirm", True))
+        else:
+            self.dismiss(("confirm", False))

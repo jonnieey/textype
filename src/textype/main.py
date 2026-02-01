@@ -14,7 +14,7 @@ from textual import events
 from rich.text import Text
 
 import config
-from widgets import FingerColumn, StatsScreen, ProfileSelectScreen
+from widgets import FingerColumn, StatsScreen, ProfileSelectScreen, ProfileInfoScreen
 from models import UserProfile
 import generator_algorithms as algos
 from xkb_resolver import XKBResolver
@@ -50,6 +50,7 @@ class TypingTutor(App):
         Binding("f2", "toggle_fingers", "Toggle Fingers"),
         Binding("f3", "toggle_stats_pref", "Toggle Stats"),
         Binding("f4", "switch_profile", "Switch Profile"),
+        Binding("p", "show_profile", "Profile Info"),
         Binding("escape", "quit", "Quit"),
     ]
 
@@ -211,6 +212,38 @@ class TypingTutor(App):
                 self.start_new_session()
 
         self.push_screen(ProfileSelectScreen(), set_profile)
+
+    def action_show_profile(self) -> None:
+        """Show current profile information and management options.
+
+        Bound to P key. Shows profile info screen.
+        """
+        if not self.profile:
+            self.notify(
+                "No active profile. Use F4 to select or create a profile.",
+                severity="warning",
+            )
+            return
+
+        def handle_result(result: tuple):
+            action, name = result
+            if action == "delete":
+                # Delete the profile
+                deleted = UserProfile.delete(name)
+                if deleted:
+                    self.notify(f"Profile '{name}' deleted.")
+                    if self.profile and self.profile.name == name:
+                        self.profile = None
+                        self.notify(
+                            "Current profile cleared. Please select a new profile."
+                        )
+                        # Automatically show profile selection screen
+                        self.action_switch_profile()
+                else:
+                    self.notify(f"Failed to delete profile '{name}'.", severity="error")
+            # Back button just returns
+
+        self.push_screen(ProfileInfoScreen(self.profile), handle_result)
 
     def action_quit(self) -> None:
         """Save configuration and exit the application.
