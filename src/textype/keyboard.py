@@ -320,6 +320,17 @@ LAYOUT: Dict[str, RowLayout] = {
             PhysicalKey.KEY_EQUAL,
         ],
     },
+    "symbols_basic": {
+        "left": [
+            PhysicalKey.KEY_TILDE,
+        ],
+        "right": [
+            PhysicalKey.KEY_LEFT_BRACKET,
+            PhysicalKey.KEY_RIGHT_BRACKET,
+            PhysicalKey.KEY_SEMICOLON,
+            PhysicalKey.KEY_QUOTE,
+        ],
+    },
 }
 """Keyboard layout organized by rows for practice generation.
 

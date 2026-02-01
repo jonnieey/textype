@@ -11,6 +11,7 @@ from textual.widgets import Header, Footer, Static
 from textual.containers import Vertical, Horizontal
 from textual.binding import Binding
 from textual import events
+from rich.text import Text
 
 import config
 from widgets import FingerColumn, StatsScreen, ProfileSelectScreen
@@ -288,13 +289,18 @@ class TypingTutor(App):
             expected_physical = self.target_keys[idx]
 
             # Validation Logic:
-            # We strictly check physical key match.
-            # OR we check if the char matches (loose fallback for non-mapped keys)
+            # Check physical key AND character match to ensure correct modifiers (Shift)
             is_correct = False
-            if physical_pressed and physical_pressed == expected_physical:
+            physical_match = physical_pressed and physical_pressed == expected_physical
+            char_match = char == self.target_text[idx]
+
+            if physical_pressed:
+                # If we know the physical key, it must match expected AND produce correct char
+                if physical_match and char_match:
+                    is_correct = True
+            elif char_match:
+                # Fallback for unmapped keys
                 is_correct = True
-            elif char == self.target_text[idx]:
-                is_correct = True  # Char match fallback
 
             if not self.session_start_time:
                 self.session_start_time = time.time()
@@ -354,20 +360,18 @@ class TypingTutor(App):
 
         self.query_one("#stats-bar").update(status_text)
 
-        # Highlighting logic (same as before)
-        rich = ""
+        # Highlighting logic
+        rich_text = Text("")
         for i, c in enumerate(self.target_text):
             if i < len(self.typed_text):
-                rich += (
-                    f"[#9ece6a]{c}[/]"
-                    if self.typed_text[i] == c
-                    else f"[#f7768e]{c}[/]"
-                )
+                style = "#9ece6a" if self.typed_text[i] == c else "#f7768e"
+                rich_text.append(c, style=style)
             elif i == len(self.typed_text):
-                rich += f"[reverse]{c}[/]"
+                rich_text.append(c, style="reverse")
             else:
-                rich += c
-        self.query_one("#typing-area").update(f"\n\n{rich}")
+                rich_text.append(c)
+
+        self.query_one("#typing-area").update(rich_text)
 
         self.query(".key").remove_class("active-key")
         self.query(".finger-body").remove_class("active-finger")
@@ -597,6 +601,7 @@ class TypingTutor(App):
             physical_keys = [random.choice(all_keys) for _ in range(40)]
 
         self.target_keys = physical_keys
+        shift_mode = lesson.get("shift_mode", "off")
 
         # 🔤 Render via XKB
         rendered = []
@@ -605,9 +610,19 @@ class TypingTutor(App):
                 rendered.append(" ")
                 continue
 
-            # Try unshifted first
-            self.resolver.update_modifiers(shift=False)
+            use_shift = False
+            if shift_mode == "always":
+                use_shift = True
+            elif shift_mode == "mixed":
+                use_shift = random.choice([True, False])
+
+            self.resolver.update_modifiers(shift=use_shift)
             char = self.resolver.resolve(key.value)
+
+            # Fallback if shift produced nothing (unlikely for standard keys)
+            if not char and use_shift:
+                self.resolver.update_modifiers(shift=False)
+                char = self.resolver.resolve(key.value)
 
             rendered.append(char or "")
 

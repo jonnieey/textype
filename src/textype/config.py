@@ -51,6 +51,7 @@ class LessonDict(TypedDict):
     row: str
     target_acc: int
     target_wpm: int
+    shift_mode: str  # "off" (default), "mixed", "always"
 
 
 rows: Tuple[str, ...] = ("home", "top", "bottom", "numbers")
@@ -104,8 +105,45 @@ for idx, row in enumerate(rows, start=1):
                 "target_acc": 95,
                 "target_wpm": 10,
             },
+            {
+                "name": f"{idx}.7: Mixed Case",
+                "algo": "pseudo",
+                "row": row,
+                "target_acc": 90,
+                "target_wpm": 10,
+                "shift_mode": "mixed",
+            },
         ]
     )
+
+LESSONS.extend(
+    [
+        {
+            "name": "5.1: Special Symbols",
+            "algo": "repeat",
+            "row": "symbols_basic",
+            "target_acc": 90,
+            "target_wpm": 10,
+            "shift_mode": "mixed",
+        },
+        {
+            "name": "5.2: Symbols Adjacency",
+            "algo": "adjacent",
+            "row": "symbols_basic",
+            "target_acc": 90,
+            "target_wpm": 10,
+            "shift_mode": "mixed",
+        },
+        {
+            "name": "5.3: Symbols Synthesis",
+            "algo": "pseudo",
+            "row": "symbols_basic",
+            "target_acc": 90,
+            "target_wpm": 10,
+            "shift_mode": "mixed",
+        },
+    ]
+)
 
 
 # ============================================================================
