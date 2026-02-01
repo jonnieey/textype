@@ -50,7 +50,7 @@ class TypingTutor(App):
         Binding("f2", "toggle_fingers", "Toggle Fingers"),
         Binding("f3", "toggle_stats_pref", "Toggle Stats"),
         Binding("f4", "switch_profile", "Switch Profile"),
-        Binding("p", "show_profile", "Profile Info"),
+        Binding("f5", "show_profile", "Profile Info"),
         Binding("escape", "quit", "Quit"),
     ]
 
@@ -453,8 +453,16 @@ class TypingTutor(App):
                         if fid.startswith("L")
                         else f"#key-{PhysicalKey.KEY_SHIFT_LEFT.name}"
                     )
+                    # Highlight shift key on keyboard
                     try:
                         self.query_one(shift_id).add_class("active-key")
+                    except Exception:
+                        pass
+
+                    # Highlight shift finger on finger guide
+                    shift_finger = "R4" if fid.startswith("L") else "L1"
+                    try:
+                        self.query_one(f"#{shift_finger}").add_class("active-finger")
                     except Exception:
                         pass
 
