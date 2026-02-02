@@ -51,7 +51,7 @@ class TypingTutor(App):
         Binding("f3", "toggle_stats_pref", "Toggle Stats"),
         Binding("f4", "switch_profile", "Switch Profile"),
         Binding("f5", "show_profile", "Profile Info"),
-        Binding("escape", "quit", "Quit"),
+        Binding("ctrl+q", "quit", "Quit"),
     ]
 
     def __init__(self) -> None:
