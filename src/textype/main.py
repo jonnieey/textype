@@ -80,6 +80,7 @@ class TypingTutor(App):
         self.target_keys: List[PhysicalKey] = []
         self.last_drill_passed: bool = False
         self.previous_lesson_index: int = 0
+        self.current_code_language: Optional[str] = None
 
         # Build Reverse Map: Character -> Physical Key (for validation)
         # Note: This is an approximation. A robust solution might iterate all keycodes.
@@ -461,7 +462,10 @@ class TypingTutor(App):
             if practice_mode == "sentences":
                 mode_display = "SENTENCE PRACTICE"
             elif practice_mode == "code":
-                mode_display = "CODE PRACTICE"
+                if self.current_code_language:
+                    mode_display = f"CODE ({self.current_code_language.upper()})"
+                else:
+                    mode_display = "CODE PRACTICE"
             else:
                 lesson_idx = self.profile.current_lesson_index
                 if lesson_idx < len(config.LESSONS):
@@ -554,6 +558,9 @@ class TypingTutor(App):
         Returns:
             Text to practice (lesson, sentences, or code snippets)
         """
+        # Reset current code language (will be set if in code mode)
+        self.current_code_language = None
+
         if not self.profile:
             sentence = algos.generate_sentence()
             self.target_keys = self._sentence_to_physical_keys(sentence)
@@ -565,10 +572,20 @@ class TypingTutor(App):
             self.target_keys = self._sentence_to_physical_keys(sentence)
             return sentence
         elif practice_mode == "code":
-            # Randomly select a language for variety
-            language = random.choice(["python", "rust", "c", "cpp"])
+            # Get configured languages, fallback to all supported
+            lang_config = self.profile.config_overrides.get(
+                "CODE_LANGUAGES", "python,rust,c,cpp"
+            )
+            allowed_languages = self._parse_language_config(lang_config)
+
+            if not allowed_languages:
+                # Fallback to all supported languages if config is empty
+                allowed_languages = ["python", "rust", "c", "cpp"]
+
+            language = random.choice(allowed_languages)
             snippet = code_generator.generate_code_snippet(language)
             self.target_keys = self._sentence_to_physical_keys(snippet)
+            self.current_code_language = language
             return snippet
         else:
             # generate_lesson_text() already sets self.target_keys
@@ -603,6 +620,28 @@ class TypingTutor(App):
                     # For simplicity, use space as fallback
                     physical_keys.append(PhysicalKey.KEY_SPACE)
         return physical_keys
+
+    def _parse_language_config(self, config_str: str) -> List[str]:
+        """Parse comma-separated language configuration.
+
+        Args:
+            config_str: Comma-separated string like "python,rust,c"
+
+        Returns:
+            List of valid language strings, stripped and lowercased
+        """
+        if not config_str:
+            return []
+
+        languages = []
+        for lang in config_str.split(","):
+            lang = lang.strip().lower()
+            if lang:
+                languages.append(lang)
+
+        # Filter to only supported languages
+        supported = {"python", "rust", "c", "cpp"}
+        return [lang for lang in languages if lang in supported]
 
     def start_new_session(self) -> None:
         """Start a new 5-minute drill session.

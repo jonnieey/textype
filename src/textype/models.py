@@ -39,7 +39,8 @@ class UserProfile:
             "SHOW_FINGERS": True,
             "SHOW_STATS_ON_END": True,
             "HARD_MODE": True,
-            "PRACTICE_MODE": "curriculum",  # "curriculum" or "sentences"
+            "PRACTICE_MODE": "curriculum",  # "curriculum", "sentences", or "code"
+            "CODE_LANGUAGES": "python,rust,c,cpp",  # comma-separated list
         }
     )
 
