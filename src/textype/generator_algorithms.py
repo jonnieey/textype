@@ -225,6 +225,18 @@ def pseudo_words(row_keys: RowLayout, count: int = 10) -> List[PhysicalKey]:
     return seq
 
 
+def generate_sentence() -> str:
+    """Generate a random practice sentence.
+
+    Returns a random sentence from the configured sentence list.
+    This is used for sentence practice mode.
+    """
+    import config
+    import random
+
+    return random.choice(config.SENTENCES)
+
+
 if __name__ == "__main__":
     from keyboard import LAYOUT
 
@@ -235,3 +247,4 @@ if __name__ == "__main__":
     print(mirror_pairs(row_keys))
     print(rolls(row_keys))
     print(pseudo_words(row_keys))
+    print(generate_sentence())

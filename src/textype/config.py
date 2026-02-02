@@ -348,6 +348,36 @@ LESSONS.extend(
     ]
 )
 
+# Sentence practice lessons (15.1-15.3)
+LESSONS.extend(
+    [
+        {
+            "name": "15.1: Sentence Practice I",
+            "algo": "sentence",
+            "row": "home",
+            "target_acc": 90,
+            "target_wpm": 20,
+            "shift_mode": "off",
+        },
+        {
+            "name": "15.2: Sentence Practice II",
+            "algo": "sentence",
+            "row": "home",
+            "target_acc": 92,
+            "target_wpm": 25,
+            "shift_mode": "off",
+        },
+        {
+            "name": "15.3: Sentence Practice III",
+            "algo": "sentence",
+            "row": "home",
+            "target_acc": 95,
+            "target_wpm": 30,
+            "shift_mode": "off",
+        },
+    ]
+)
+
 
 # ============================================================================
 # Practice Content
@@ -358,6 +388,17 @@ SENTENCES: List[str] = [
     "Practice until the motions become second nature",
     "Reliance on sight is the enemy of speed",
     "Fluidity matters more than raw velocity",
+    "Typing speed improves with consistent daily practice",
+    "Accuracy first, speed will follow naturally",
+    "Keep your eyes on the screen, not the keyboard",
+    "Proper finger placement is key to efficient typing",
+    "Every expert was once a beginner who kept practicing",
+    "Slow and steady wins the typing race",
+    "Muscle memory develops through repetition and focus",
+    "The home row is your foundation for touch typing",
+    "Challenge yourself with new words and patterns",
+    "Take breaks to avoid fatigue and maintain accuracy",
+    "Celebrate small improvements along the way",
 ]
 """Default practice sentences for non-lesson typing."""
 

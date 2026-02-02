@@ -39,6 +39,7 @@ class UserProfile:
             "SHOW_FINGERS": True,
             "SHOW_STATS_ON_END": True,
             "HARD_MODE": True,
+            "PRACTICE_MODE": "curriculum",  # "curriculum" or "sentences"
         }
     )
 

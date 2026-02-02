@@ -51,6 +51,7 @@ class TypingTutor(App):
         Binding("f3", "toggle_stats_pref", "Toggle Stats"),
         Binding("f4", "switch_profile", "Switch Profile"),
         Binding("f5", "show_profile", "Profile Info"),
+        Binding("f6", "toggle_practice_mode", "Practice Mode"),
         Binding("ctrl+q", "quit", "Quit"),
     ]
 
@@ -197,6 +198,50 @@ class TypingTutor(App):
         self.show_stats_pref = not self.show_stats_pref
         status = "ON" if self.show_stats_pref else "OFF"
         self.notify(f"Auto-Stats: {status}")
+
+    def action_toggle_practice_mode(self) -> None:
+        """Toggle between curriculum and sentence practice mode.
+
+        Bound to F6 key.
+        """
+        if not self.profile:
+            self.notify(
+                "No active profile. Use F4 to select or create a profile.",
+                severity="warning",
+            )
+            return
+
+        current_mode = self.profile.config_overrides.get("PRACTICE_MODE", "curriculum")
+        new_mode = "sentences" if current_mode == "curriculum" else "curriculum"
+        self.profile.config_overrides["PRACTICE_MODE"] = new_mode
+        self.profile.save()
+
+        status = "Sentence Practice" if new_mode == "sentences" else "Curriculum"
+        self.notify(f"Practice Mode: {status}")
+
+        # Restart session with new mode
+        if self.session_active:
+            self._reset_for_mode_change()
+        else:
+            self.start_new_session()
+
+    def _reset_for_mode_change(self) -> None:
+        """Reset typing state for practice mode change without evaluating current drill.
+
+        Keeps session active and timer running, but resets text and statistics.
+        """
+        # Reset typing state
+        self.cumulative_typed_chars = 0
+        self.cumulative_errors = 0
+        self.current_chunk_errors = 0
+        self.chunks_completed = 0
+        self.typed_text = ""
+
+        # Generate new practice text and keys
+        self.target_text = self._get_practice_text()
+
+        # Refresh display
+        self.refresh_display()
 
     def action_switch_profile(self) -> None:
         """Switch or create a user profile.
@@ -383,14 +428,20 @@ class TypingTutor(App):
 
         # Update Header
         if self.profile:
-            lesson_idx = self.profile.current_lesson_index
-            if lesson_idx < len(config.LESSONS):
-                lesson_name = config.LESSONS[lesson_idx]["name"]
+            practice_mode = self.profile.config_overrides.get(
+                "PRACTICE_MODE", "curriculum"
+            )
+            if practice_mode == "sentences":
+                mode_display = "SENTENCE PRACTICE"
             else:
-                lesson_name = "Master Mode"
+                lesson_idx = self.profile.current_lesson_index
+                if lesson_idx < len(config.LESSONS):
+                    mode_display = config.LESSONS[lesson_idx]["name"]
+                else:
+                    mode_display = "Master Mode"
 
             status_text = (
-                f"LESSON: {lesson_name} | TIME: {timer_str} | WPM: {wpm} | ACC: {acc}%"
+                f"MODE: {mode_display} | TIME: {timer_str} | WPM: {wpm} | ACC: {acc}%"
             )
         else:
             status_text = f"TIME: {timer_str} | WPM: {wpm} | ACC: {acc}% | [bold red]AWAITING PROFILE...[/]"
@@ -466,6 +517,51 @@ class TypingTutor(App):
                     except Exception:
                         pass
 
+    def _get_practice_text(self) -> str:
+        """Get practice text based on current profile and practice mode.
+
+        Also sets self.target_keys for the generated text.
+
+        Returns:
+            Text to practice (either from lesson or sentences)
+        """
+        if not self.profile:
+            sentence = algos.generate_sentence()
+            self.target_keys = self._sentence_to_physical_keys(sentence)
+            return sentence
+
+        practice_mode = self.profile.config_overrides.get("PRACTICE_MODE", "curriculum")
+        if practice_mode == "sentences":
+            sentence = algos.generate_sentence()
+            self.target_keys = self._sentence_to_physical_keys(sentence)
+            return sentence
+        else:
+            # generate_lesson_text() already sets self.target_keys
+            return self.generate_lesson_text()
+
+    def _sentence_to_physical_keys(self, sentence: str) -> List[PhysicalKey]:
+        """Convert a sentence string to list of physical keys.
+
+        Args:
+            sentence: The sentence string
+
+        Returns:
+            List of physical keys corresponding to each character
+        """
+        physical_keys = []
+        for char in sentence:
+            if char == " ":
+                physical_keys.append(PhysicalKey.KEY_SPACE)
+            else:
+                physical_key = self.char_to_physical.get(char)
+                if physical_key:
+                    physical_keys.append(physical_key)
+                else:
+                    # Fallback: try to find a key that produces this char with shift
+                    # For simplicity, use space as fallback
+                    physical_keys.append(PhysicalKey.KEY_SPACE)
+        return physical_keys
+
     def start_new_session(self) -> None:
         """Start a new 5-minute drill session.
 
@@ -479,10 +575,7 @@ class TypingTutor(App):
         self.current_chunk_errors = 0
         self.chunks_completed = 0
 
-        if self.profile:
-            self.target_text = self.generate_lesson_text()
-        else:
-            self.target_text = random.choice(config.SENTENCES)
+        self.target_text = self._get_practice_text()
 
         self.typed_text = ""
         self.refresh_display()
@@ -511,10 +604,7 @@ class TypingTutor(App):
         self.cumulative_errors += self.current_chunk_errors
         self.chunks_completed += 1
 
-        if self.profile:
-            self.target_text = self.generate_lesson_text()
-        else:
-            self.target_text = random.choice(config.SENTENCES)
+        self.target_text = self._get_practice_text()
 
         self.typed_text = ""
         self.current_chunk_errors = 0
@@ -562,21 +652,33 @@ class TypingTutor(App):
 
         passed = False
         if self.profile:
-            self.previous_lesson_index = self.profile.current_lesson_index
-            lesson = config.LESSONS[self.profile.current_lesson_index]
-            passed = acc >= lesson["target_acc"] and wpm >= lesson["target_wpm"]
-            self.last_drill_passed = passed
+            practice_mode = self.profile.config_overrides.get(
+                "PRACTICE_MODE", "curriculum"
+            )
 
-            if passed:
-                self.profile.current_lesson_index += 1
-                if self.profile.current_lesson_index >= len(config.LESSONS):
-                    self.profile.current_lesson_index = len(config.LESSONS) - 1
-                self.notify(f"LEVEL UP: {lesson['name']} Cleared!")
+            if practice_mode == "curriculum":
+                # Curriculum mode: evaluate lesson requirements
+                self.previous_lesson_index = self.profile.current_lesson_index
+                lesson = config.LESSONS[self.profile.current_lesson_index]
+                passed = acc >= lesson["target_acc"] and wpm >= lesson["target_wpm"]
+                self.last_drill_passed = passed
+
+                if passed:
+                    self.profile.current_lesson_index += 1
+                    if self.profile.current_lesson_index >= len(config.LESSONS):
+                        self.profile.current_lesson_index = len(config.LESSONS) - 1
+                    self.notify(f"LEVEL UP: {lesson['name']} Cleared!")
+                else:
+                    self.notify(
+                        "Requirements not met. Lesson will repeat.", severity="warning"
+                    )
             else:
-                self.notify(
-                    "Requirements not met. Lesson will repeat.", severity="warning"
-                )
+                # Sentence practice mode: always "passed" for UI purposes
+                passed = True
+                self.last_drill_passed = True
+                self.notify("Sentence practice completed!")
 
+            # Update records regardless of mode
             if wpm > self.profile.wpm_record:
                 self.profile.wpm_record = wpm
             self.profile.total_drills += 1
@@ -634,6 +736,13 @@ class TypingTutor(App):
         """
         lesson = config.LESSONS[self.profile.current_lesson_index]
         algo_type = lesson.get("algo")
+
+        # Handle sentence algorithm specially
+        if algo_type == "sentence":
+            sentence = algos.generate_sentence()
+            self.target_keys = self._sentence_to_physical_keys(sentence)
+            return sentence
+
         row_key = lesson.get("row", "home")
         row_data = LAYOUT.get(row_key)
 
