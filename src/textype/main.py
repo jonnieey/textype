@@ -17,6 +17,7 @@ import config
 from widgets import FingerColumn, StatsScreen, ProfileSelectScreen, ProfileInfoScreen
 from models import UserProfile
 import generator_algorithms as algos
+import code_generator
 from xkb_resolver import XKBResolver
 from keyboard import PhysicalKey, KEYBOARD_ROWS, FINGER_MAP, DISPLAY_MAP, LAYOUT
 
@@ -200,7 +201,7 @@ class TypingTutor(App):
         self.notify(f"Auto-Stats: {status}")
 
     def action_toggle_practice_mode(self) -> None:
-        """Toggle between curriculum and sentence practice mode.
+        """Toggle between curriculum, sentence, and code practice mode.
 
         Bound to F6 key.
         """
@@ -212,11 +213,21 @@ class TypingTutor(App):
             return
 
         current_mode = self.profile.config_overrides.get("PRACTICE_MODE", "curriculum")
-        new_mode = "sentences" if current_mode == "curriculum" else "curriculum"
+        if current_mode == "curriculum":
+            new_mode = "sentences"
+        elif current_mode == "sentences":
+            new_mode = "code"
+        else:
+            new_mode = "curriculum"
         self.profile.config_overrides["PRACTICE_MODE"] = new_mode
         self.profile.save()
 
-        status = "Sentence Practice" if new_mode == "sentences" else "Curriculum"
+        if new_mode == "sentences":
+            status = "Sentence Practice"
+        elif new_mode == "code":
+            status = "Code Practice"
+        else:
+            status = "Curriculum"
         self.notify(f"Practice Mode: {status}")
 
         # Restart session with new mode
@@ -352,6 +363,10 @@ class TypingTutor(App):
         # 1. Identify which character was typed
         if event.key == "space":
             char = " "
+        elif event.key == "enter":
+            char = "\n"
+        elif event.key == "tab":
+            char = "\t"
         elif event.is_printable:
             char = event.character
         else:
@@ -360,6 +375,10 @@ class TypingTutor(App):
         # 2. Determine which PhysicalKey this corresponds to
         if char == " ":
             physical_pressed = PhysicalKey.KEY_SPACE
+        elif char == "\n" or char == "\r":
+            physical_pressed = PhysicalKey.KEY_ENTER
+        elif char == "\t":
+            physical_pressed = PhysicalKey.KEY_TAB
         else:
             physical_pressed = self.char_to_physical.get(char)
             # Fallback: if we can't map it (e.g. complex compose), rely on char match?
@@ -374,7 +393,15 @@ class TypingTutor(App):
             # Check physical key AND character match to ensure correct modifiers (Shift)
             is_correct = False
             physical_match = physical_pressed and physical_pressed == expected_physical
-            char_match = char == self.target_text[idx]
+            target_char = self.target_text[idx]
+            char_match = char == target_char
+            # Special case: Enter key matches both newline and carriage return
+            if (
+                physical_pressed == PhysicalKey.KEY_ENTER
+                and char in ("\n", "\r")
+                and target_char in ("\n", "\r")
+            ):
+                char_match = True
 
             if physical_pressed:
                 # If we know the physical key, it must match expected AND produce correct char
@@ -433,6 +460,8 @@ class TypingTutor(App):
             )
             if practice_mode == "sentences":
                 mode_display = "SENTENCE PRACTICE"
+            elif practice_mode == "code":
+                mode_display = "CODE PRACTICE"
             else:
                 lesson_idx = self.profile.current_lesson_index
                 if lesson_idx < len(config.LESSONS):
@@ -523,7 +552,7 @@ class TypingTutor(App):
         Also sets self.target_keys for the generated text.
 
         Returns:
-            Text to practice (either from lesson or sentences)
+            Text to practice (lesson, sentences, or code snippets)
         """
         if not self.profile:
             sentence = algos.generate_sentence()
@@ -535,6 +564,12 @@ class TypingTutor(App):
             sentence = algos.generate_sentence()
             self.target_keys = self._sentence_to_physical_keys(sentence)
             return sentence
+        elif practice_mode == "code":
+            # Randomly select a language for variety
+            language = random.choice(["python", "rust", "c", "cpp"])
+            snippet = code_generator.generate_code_snippet(language)
+            self.target_keys = self._sentence_to_physical_keys(snippet)
+            return snippet
         else:
             # generate_lesson_text() already sets self.target_keys
             return self.generate_lesson_text()
@@ -552,6 +587,13 @@ class TypingTutor(App):
         for char in sentence:
             if char == " ":
                 physical_keys.append(PhysicalKey.KEY_SPACE)
+            elif char == "\n":
+                physical_keys.append(PhysicalKey.KEY_ENTER)
+            elif char == "\t":
+                physical_keys.append(PhysicalKey.KEY_TAB)
+            elif char == "\r":
+                # Carriage return, treat as Enter
+                physical_keys.append(PhysicalKey.KEY_ENTER)
             else:
                 physical_key = self.char_to_physical.get(char)
                 if physical_key:
@@ -672,11 +714,16 @@ class TypingTutor(App):
                     self.notify(
                         "Requirements not met. Lesson will repeat.", severity="warning"
                     )
-            else:
+            elif practice_mode == "sentences":
                 # Sentence practice mode: always "passed" for UI purposes
                 passed = True
                 self.last_drill_passed = True
                 self.notify("Sentence practice completed!")
+            else:
+                # Code practice mode: always "passed" for UI purposes
+                passed = True
+                self.last_drill_passed = True
+                self.notify("Code practice completed!")
 
             # Update records regardless of mode
             if wpm > self.profile.wpm_record:
