@@ -10,6 +10,90 @@ from textype.models import UserProfile, DEFAULT_CONFIG, INITIAL_PROFILE_OVERRIDE
 
 
 @pytest.fixture
+def temp_config_dir(tmp_path):
+    """Creates a temporary directory for global config testing."""
+    return tmp_path / "config"
+
+
+@pytest.fixture
+def mock_global_config_path(temp_config_dir):
+    """Mocks the GLOBAL_CONFIG_PATH constant for tests."""
+    config_file = temp_config_dir / "config.json"
+    with patch("textype.models.GLOBAL_CONFIG_PATH", str(config_file)):
+        yield str(config_file)
+
+
+class TestConfigHierarchy:
+    """Tests the configuration priority: Profile > Global > Default."""
+
+    def test_load_global_config_exists(self, mock_global_config_path):
+        """Tests that load_global_config correctly reads a JSON file from disk."""
+        from textype.models import load_global_config
+
+        test_data = {"DRILL_DURATION": 999, "AI_MODEL": "test-model"}
+        os.makedirs(os.path.dirname(mock_global_config_path), exist_ok=True)
+        with open(mock_global_config_path, "w") as f:
+            json.dump(test_data, f)
+
+        loaded = load_global_config()
+        assert loaded["DRILL_DURATION"] == 999
+        assert loaded["AI_MODEL"] == "test-model"
+
+    def test_load_global_config_missing(self, mock_global_config_path):
+        """Tests that load_global_config returns an empty dict if file is missing."""
+        from textype.models import load_global_config
+
+        if os.path.exists(mock_global_config_path):
+            os.remove(mock_global_config_path)
+
+        assert load_global_config() == {}
+
+    def test_hierarchy_global_overrides_default(self):
+        """Tests that global configuration takes precedence over built-in defaults."""
+        profile = UserProfile(name="test_user")
+        # Clear initial overrides to test global vs default
+        profile.config_overrides = {}
+
+        mock_global = {"DRILL_DURATION": 123}
+
+        with patch("textype.models.GLOBAL_CONFIG", mock_global):
+            # Should pull from Global (123) instead of Default (300)
+            assert profile.get_config("DRILL_DURATION") == 123
+            # Should still pull other values from Default
+            assert profile.get_config("HARD_MODE") == DEFAULT_CONFIG["HARD_MODE"]
+
+    def test_hierarchy_profile_overrides_global(self):
+        """Tests that profile-specific settings take precedence over global settings."""
+        profile = UserProfile(name="test_user")
+        profile.config_overrides = {"DRILL_DURATION": 10}
+
+        mock_global = {"DRILL_DURATION": 999}
+
+        with patch("textype.models.GLOBAL_CONFIG", mock_global):
+            # Profile (10) wins over Global (999) and Default (300)
+            assert profile.get_config("DRILL_DURATION") == 10
+
+    def test_merged_config_property_logic(self):
+        """Tests that the .config property merges all three layers correctly."""
+        profile = UserProfile(name="test_user")
+        profile.config_overrides = {"SHOW_QWERTY": True}
+
+        mock_global = {
+            "DRILL_DURATION": 500,
+            "SHOW_QWERTY": False,  # Should be overridden by profile
+        }
+
+        with patch("textype.models.GLOBAL_CONFIG", mock_global):
+            merged = profile.config
+
+            assert merged["SHOW_QWERTY"] is True  # Profile wins
+            assert merged["DRILL_DURATION"] == 500  # Global wins
+            assert merged["HARD_MODE"] is True  # Default wins
+            # Ensure no keys from DEFAULT_CONFIG are lost
+            assert all(key in merged for key in DEFAULT_CONFIG)
+
+
+@pytest.fixture
 def temp_profile_dir(tmp_path):
     """Creates a temporary directory for profile testing."""
     return tmp_path / "profiles"

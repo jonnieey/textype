@@ -7,31 +7,37 @@ import json
 import os
 from dataclasses import dataclass, asdict, field
 from typing import Dict, Any, List, Optional
-from platformdirs import user_data_dir
+from platformdirs import user_data_dir, user_config_dir
 from collections import namedtuple
 
 
 PROFILES_DIR: str = user_data_dir("textype")
 """Directory where user profile data is stored."""
 
+CONFIG_DIR: str = user_config_dir("textype")
+"""Directory where global config data is stored."""
+
+GLOBAL_CONFIG_PATH: str = os.path.join(CONFIG_DIR, "config.json")
+"""Path to the global config file."""
+
 # Default configuration values for new profiles
 DEFAULT_CONFIG: Dict[str, Any] = {
-    "SHOW_QWERTY": False,
-    "SHOW_FINGERS": False,
+    "SHOW_QWERTY": True,
+    "SHOW_FINGERS": True,
     "HARD_MODE": True,
-    "SHOW_STATS_ON_END": False,
+    "SHOW_STATS_ON_END": True,
     "DRILL_DURATION": 300,
     "SHUFFLE_AFTER": 5,
-    "SENTENCE_SOURCE": "api",
+    "SENTENCE_SOURCE": "local",
     "CODE_SOURCE": "local",
     "SENTENCES_FILE": "sentences.txt",
     "CODE_FILE": "snippets.py",
     "CODE_COMMAND": "",
-    "QUOTE_API_URL": "https://api.quotify.top/random",
-    "AI_ENDPOINT": "https://api.openai.com/v1/chat/completions",
-    "AI_API_TYPE": "openai",  # "auto", "ollama", "openai"
-    "AI_MODEL": "gpt-5-nano",
-    "AI_API_KEY": os.environ.get("OPENAI_API_KEY", ""),
+    "QUOTE_API_URL": "",
+    "AI_ENDPOINT": "http://localhost:8000",
+    "AI_API_TYPE": "ollama",  # "auto", "ollama", "openai"
+    "AI_MODEL": "ollama-7b",
+    "AI_API_KEY": "",
     "PRACTICE_MODE": "curriculum",
     "CODE_LANGUAGES": "python,rust,c,cpp",
 }
@@ -43,6 +49,20 @@ INITIAL_PROFILE_OVERRIDES: Dict[str, Any] = {
     "SHOW_STATS_ON_END": True,  # Show stats automatically for new users
     # Other values use DEFAULT_CONFIG values
 }
+
+
+def load_global_config() -> Dict[str, Any]:
+    """Load the global configuration from the user's config directory."""
+    if os.path.exists(GLOBAL_CONFIG_PATH):
+        try:
+            with open(GLOBAL_CONFIG_PATH, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+GLOBAL_CONFIG: Dict[str, Any] = load_global_config()
 
 
 @dataclass
@@ -77,7 +97,9 @@ class UserProfile:
         Returns:
             Configuration value (override if exists, otherwise default)
         """
-        return self.config_overrides.get(key, DEFAULT_CONFIG.get(key))
+        return self.config_overrides.get(
+            key, GLOBAL_CONFIG.get(key, DEFAULT_CONFIG[key])
+        )
 
     @property
     def config(self) -> Dict[str, Any]:
@@ -87,6 +109,7 @@ class UserProfile:
             Complete configuration dictionary with defaults and overrides merged
         """
         merged = DEFAULT_CONFIG.copy()
+        merged.update(GLOBAL_CONFIG)
         merged.update(self.config_overrides)
         return merged
 
