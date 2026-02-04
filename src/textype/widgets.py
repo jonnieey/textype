@@ -231,18 +231,21 @@ class ProfileInfoScreen(Screen):
 
     def _create_config_widget(self, key: str, label: str) -> Horizontal:
         """Create an appropriate widget for a configuration value."""
-        value = self.modified_config.get(key, "")
-        expected_type = type(DEFAULT_CONFIG.get(key))
+        # Get the current effective value (defaults + overrides)
+        effective_value = self.profile.config.get(key, "")
+        # Check if this value is an override or the default
+        default_value = DEFAULT_CONFIG.get(key, "")
+        expected_type = type(default_value)
 
         # Determine widget based on key and expected type
         if expected_type == bool:
             # Create a Select dropdown for boolean values
             # Convert boolean to string "True"/"False"
-            if isinstance(value, bool):
-                str_value = "True" if value else "False"
+            if isinstance(effective_value, bool):
+                str_value = "True" if effective_value else "False"
             else:
                 # Try to parse string value
-                str_value = str(value).strip()
+                str_value = str(effective_value).strip()
                 if str_value.lower() in ("true", "yes", "1", "on"):
                     str_value = "True"
                 elif str_value.lower() in ("false", "no", "0", "off"):
@@ -291,8 +294,8 @@ class ProfileInfoScreen(Screen):
                 # Default value if empty
                 default_val = "local"
 
-            # Use value if not empty, otherwise default
-            str_value = str(value).strip()
+            # Use effective value
+            str_value = str(effective_value).strip()
             if not str_value or str_value == "":
                 str_value = default_val
 
@@ -305,9 +308,16 @@ class ProfileInfoScreen(Screen):
             widget = select_widget
         else:
             # Create Input widget for other types
+            # Show effective value as the input value
+            # Show default value as placeholder for reference
+            placeholder_text = (
+                f"Default: {default_value}"
+                if default_value
+                else f"Enter {label.lower()}..."
+            )
             input_widget = Input(
-                value=str(value),
-                placeholder=f"Enter {label.lower()}...",
+                value=str(effective_value),
+                placeholder=placeholder_text,
                 id=f"input-{key}",
                 classes="config-input",
             )
@@ -335,29 +345,57 @@ class ProfileInfoScreen(Screen):
         """Update modified configuration when any config widget changes."""
         if widget_id and widget_id.startswith("input-"):
             key = widget_id.replace("input-", "")
+            default_value = DEFAULT_CONFIG.get(key)
 
             # Determine expected type from DEFAULT_CONFIG
-            expected_type = type(DEFAULT_CONFIG.get(key))
+            expected_type = type(default_value)
 
-            # Convert to appropriate type
+            # Convert to appropriate type and compare with default
             if expected_type == bool:
                 # Handle boolean values
                 if value.lower() in ("true", "yes", "1", "on"):
-                    self.modified_config[key] = True
+                    converted_value = True
                 elif value.lower() in ("false", "no", "0", "off"):
-                    self.modified_config[key] = False
+                    converted_value = False
                 else:
-                    # Keep as string, will be validated on save
-                    self.modified_config[key] = value
+                    # Invalid boolean, keep as string for now
+                    converted_value = value
+
+                # Compare with default (after conversion)
+                if (
+                    isinstance(converted_value, bool)
+                    and converted_value == default_value
+                ):
+                    # Same as default, remove override if present
+                    self.modified_config.pop(key, None)
+                else:
+                    # Different from default or invalid, store override
+                    self.modified_config[key] = converted_value
+
             elif expected_type == int:
-                try:
-                    self.modified_config[key] = int(value)
-                except ValueError:
-                    # Keep as string, will be validated on save
-                    self.modified_config[key] = value
+                if value.strip() == "":
+                    # Empty string for int field - treat as "use default"
+                    self.modified_config.pop(key, None)
+                else:
+                    try:
+                        converted_value = int(value)
+                        if converted_value == default_value:
+                            # Same as default, remove override
+                            self.modified_config.pop(key, None)
+                        else:
+                            # Different from default, store override
+                            self.modified_config[key] = converted_value
+                    except ValueError:
+                        # Invalid integer, keep as string for now
+                        self.modified_config[key] = value
             else:
                 # String or other types
-                self.modified_config[key] = value
+                if value == default_value:
+                    # Same as default, remove override
+                    self.modified_config.pop(key, None)
+                else:
+                    # Different from default, store override
+                    self.modified_config[key] = value
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press actions."""
