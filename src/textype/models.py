@@ -28,7 +28,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "CODE_FILE": "snippets.py",
     "CODE_COMMAND": "",
     "QUOTE_API_URL": "https://api.quotify.top/random",
-    "AI_ENDPOINT": "http://localhost:11434/api/generate",
+    "AI_ENDPOINT": "https://api.openai.com/v1/chat/completions",
+    "AI_API_TYPE": "openai",  # "auto", "ollama", "openai"
+    "AI_MODEL": "gpt-5-nano",
+    "AI_API_KEY": os.environ.get("OPENAI_API_KEY", ""),
     "PRACTICE_MODE": "curriculum",
     "CODE_LANGUAGES": "python,rust,c,cpp",
 }

@@ -155,7 +155,7 @@ class ConfigWidgetFactory:
 
         if expected_type == bool:
             return ConfigWidgetFactory._create_boolean_widget(key, effective_value)
-        elif key in ("PRACTICE_MODE", "SENTENCE_SOURCE", "CODE_SOURCE"):
+        elif key in ("PRACTICE_MODE", "SENTENCE_SOURCE", "CODE_SOURCE", "AI_API_TYPE"):
             return ConfigWidgetFactory._create_select_widget(key, effective_value)
         else:
             return ConfigWidgetFactory._create_input_widget(
@@ -203,6 +203,13 @@ class ConfigWidgetFactory:
                 ("ai", "ai"),
             ]
             default_val = "api"
+        elif key == "AI_API_TYPE":
+            options = [
+                ("auto", "auto"),
+                ("ollama", "ollama"),
+                ("openai", "openai"),
+            ]
+            default_val = "auto"
         else:  # CODE_SOURCE
             options = [
                 ("local", "local"),
@@ -215,6 +222,18 @@ class ConfigWidgetFactory:
         str_value = str(effective_value).strip()
         if not str_value or str_value == "":
             str_value = default_val
+
+        # Extract valid values from options tuples
+        valid_values = [opt[0] for opt in options]
+
+        # Ensure str_value is a valid option
+        if str_value not in valid_values:
+            # Try default value
+            if default_val in valid_values:
+                str_value = default_val
+            else:
+                # Fallback to first option
+                str_value = valid_values[0] if valid_values else ""
 
         select_widget = Select(
             options=options,
@@ -234,12 +253,23 @@ class ConfigWidgetFactory:
             if default_value
             else f"Enter {label.lower()}..."
         )
-        input_widget = Input(
-            value=str(effective_value),
-            placeholder=placeholder_text,
-            id=f"input-{key}",
-            classes="config-input",
-        )
+
+        # Use PasswordInput for API keys
+        if key == "AI_API_KEY":
+            input_widget = Input(
+                value=str(effective_value),
+                placeholder=placeholder_text,
+                id=f"input-{key}",
+                classes="config-input",
+                password=True,
+            )
+        else:
+            input_widget = Input(
+                value=str(effective_value),
+                placeholder=placeholder_text,
+                id=f"input-{key}",
+                classes="config-input",
+            )
         return input_widget, f"input-{key}"
 
 
@@ -330,6 +360,11 @@ class ProfileInfoScreen(Screen):
                         "CODE_COMMAND", "Command for Sentence Generation"
                     )
                     yield self._create_config_widget("AI_ENDPOINT", "AI Endpoint URL")
+                    yield self._create_config_widget("AI_API_TYPE", "AI API Type")
+                    yield self._create_config_widget("AI_MODEL", "AI Model Name")
+                    yield self._create_config_widget(
+                        "AI_API_KEY", "AI API Key (optional)"
+                    )
 
                     # Code Generation
                     yield Label("Code Generation", classes="subsection-title")

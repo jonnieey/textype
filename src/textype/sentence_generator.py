@@ -6,9 +6,9 @@ import requests
 from pathlib import Path
 
 from typing import Dict, Any, Optional
-import textype.config as config
 from textype.text_normalizer import normalize_text
 from textype.curriculum import SENTENCES
+import textype.config as config
 
 try:
     import requests
@@ -57,14 +57,58 @@ def generate_sentence(config_overrides: Optional[Dict[str, Any]] = None) -> str:
 
     if source == "ai" and HAS_REQUESTS:
         try:
-            payload = {
-                "model": "codellama",
-                "prompt": "Provide sentences for typing practice.",
-                "stream": False,
-            }
-            response = requests.post(get("AI_ENDPOINT"), json=payload, timeout=5)
+            endpoint = get("AI_ENDPOINT")
+            api_type = get("AI_API_TYPE")
+            model = get("AI_MODEL")
+            api_key = get("AI_API_KEY")
+
+            # Auto-detect API type if set to "auto"
+            if api_type == "auto":
+                if "/chat/completions" in endpoint:
+                    api_type = "openai"
+                elif "/api/generate" in endpoint:
+                    api_type = "ollama"
+                else:
+                    # Default to ollama for backward compatibility
+                    api_type = "ollama"
+
+            headers = {}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+
+            if api_type == "openai":
+                payload = {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": "Provide only sentences for typing practice. Do not include any explanations, commentary, or markdown formatting. Return only the sentences.",
+                        }
+                    ],
+                    "max_tokens": 100,
+                    "temperature": 0.7,
+                }
+            else:  # ollama
+                payload = {
+                    "model": model,
+                    "prompt": "Provide only sentences for typing practice. Do not include any explanations, commentary, or markdown formatting. Return only the sentences.",
+                    "stream": False,
+                }
+
+            response = requests.post(
+                endpoint, json=payload, headers=headers, timeout=10
+            )
             if response.status_code == 200:
-                return normalize_text(response.json().get("response", "").strip())
+                if api_type == "openai":
+                    result = (
+                        response.json()
+                        .get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "")
+                    )
+                else:  # ollama
+                    result = response.json().get("response", "")
+                return normalize_text(result.strip())
         except Exception:
             pass
 

@@ -41,3 +41,6 @@ CODE_FILE: str = "snippets.py"
 CODE_COMMAND: str = ""  # e.g., "grep -r 'def ' . | shuf -n 1"
 QUOTE_API_URL: str = "https://api.quotify.top/random"
 AI_ENDPOINT: str = "http://localhost:11434/api/generate"  # Ollama example
+AI_API_TYPE: str = "auto"  # "auto", "ollama", or "openai"
+AI_MODEL: str = "codellama"
+AI_API_KEY: str = ""

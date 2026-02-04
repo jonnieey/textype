@@ -55,14 +55,62 @@ def generate_code_snippet(
     # 2. AI Generation (Online/Local LLM)
     if source == "ai" and HAS_REQUESTS:
         try:
-            payload = {
-                "model": "codellama",
-                "prompt": f"Provide a short {language} code snippet (5-10 lines). Code only.",
-                "stream": False,
-            }
-            response = requests.post(get("AI_ENDPOINT"), json=payload, timeout=5)
+            from os import environ
+
+            endpoint = (
+                get("AI_ENDPOINT") or "https://api.openai.com/v1/chat/completions"
+            )
+            api_type = get("AI_API_TYPE") or "openai"
+            model = get("AI_MODEL") or "gpt-5-nano"
+            api_key = get("AI_API_KEY") or environ.get("OPENAI_API_KEY")
+
+            # Auto-detect API type if set to "auto"
+            if api_type == "auto":
+                if "/chat/completions" in endpoint:
+                    api_type = "openai"
+                elif "/api/generate" in endpoint:
+                    api_type = "ollama"
+                else:
+                    # Default to ollama for backward compatibility
+                    api_type = "ollama"
+
+            headers = {}
+            if api_key:
+                headers["Authorization"] = f"Bearer {api_key}"
+
+            if api_type == "openai":
+                payload = {
+                    "model": model,
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": f"Provide only a short {language} code snippet (5-10 lines). Do not include any explanations, commentary, or markdown code blocks. Return only the raw code.",
+                        }
+                    ],
+                    "max_tokens": 200,
+                    "temperature": 0.7,
+                }
+            else:  # ollama
+                payload = {
+                    "model": model,
+                    "prompt": f"Provide only a short {language} code snippet (5-10 lines). Do not include any explanations, commentary, or markdown code blocks. Return only the raw code.",
+                    "stream": False,
+                }
+
+            response = requests.post(
+                endpoint, json=payload, headers=headers, timeout=10
+            )
             if response.status_code == 200:
-                return normalize_text(response.json().get("response", "").strip())
+                if api_type == "openai":
+                    result = (
+                        response.json()
+                        .get("choices", [{}])[0]
+                        .get("message", {})
+                        .get("content", "")
+                    )
+                else:  # ollama
+                    result = response.json().get("response", "")
+                return normalize_text(result.strip())
         except Exception:
             pass
 
