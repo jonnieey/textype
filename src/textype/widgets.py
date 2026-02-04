@@ -178,10 +178,10 @@ class ConfigWidgetFactory:
 
         select_widget = Select(
             options=[("True", "True"), ("False", "False")],
+            value=str_value,
             id=f"input-{key}",
             classes="config-select",
         )
-        select_widget.value = str_value
         return select_widget, f"input-{key}"
 
     @staticmethod
@@ -491,6 +491,24 @@ class ProfileInfoScreen(Screen):
         if confirmed:
             self.dismiss(("delete", profile_name))
         # else do nothing (stay on screen)
+
+    def _show_delete_confirmation(self, profile_name: str, callback) -> None:
+        """Show confirmation screen for profile deletion.
+
+        Args:
+            profile_name: Name of the profile to delete
+            callback: Function to call with confirmation result
+        """
+
+        def handle_confirmation(result: tuple):
+            action, confirmed = result
+            if action == "confirm":
+                callback(confirmed, profile_name)
+
+        self.app.push_screen(
+            ConfirmationScreen(f"Delete profile '{profile_name}'?"),
+            handle_confirmation,
+        )
 
 
 class ProfileSelectScreen(Screen):
