@@ -7,6 +7,7 @@ import asyncio
 import random
 import subprocess
 from pathlib import Path
+from typing import Dict, Any, Optional
 from textype.text_normalizer import normalize_text
 
 # Optional dependencies
@@ -18,11 +19,14 @@ except ImportError:
     HAS_REQUESTS = False
 
 
-def generate_code_snippet(language: str = "python") -> str:
+def generate_code_snippet(
+    language: str = "python", config_overrides: Optional[Dict[str, Any]] = None
+) -> str:
     """Generate a random code snippet for typing practice.
 
     Args:
         language: Programming language for the snippet (python, rust, c, cpp)
+        config_overrides: Optional dictionary of configuration overrides
 
     Returns:
         Code snippet as a string
@@ -32,12 +36,18 @@ def generate_code_snippet(language: str = "python") -> str:
     """
     import textype.config as config
 
-    source = config.CODE_SOURCE
+    # Helper to get config value
+    def get(key):
+        if config_overrides and key in config_overrides:
+            return config_overrides[key]
+        return getattr(config, key)
+
+    source = get("CODE_SOURCE")
 
     # 1. Local Command/Parser (Offline Dynamic)
-    if source == "cmd" and config.CODE_COMMAND:
+    if source == "cmd" and get("CODE_COMMAND"):
         try:
-            result = subprocess.check_output(config.CODE_COMMAND, shell=True, timeout=2)
+            result = subprocess.check_output(get("CODE_COMMAND"), shell=True, timeout=2)
             return normalize_text(result.decode().strip())
         except Exception:
             pass
@@ -50,15 +60,15 @@ def generate_code_snippet(language: str = "python") -> str:
                 "prompt": f"Provide a short {language} code snippet (5-10 lines). Code only.",
                 "stream": False,
             }
-            response = requests.post(config.AI_ENDPOINT, json=payload, timeout=5)
+            response = requests.post(get("AI_ENDPOINT"), json=payload, timeout=5)
             if response.status_code == 200:
                 return normalize_text(response.json().get("response", "").strip())
         except Exception:
             pass
 
     # 3. Local File
-    if source == "file" and Path(config.CODE_FILE).exists():
-        with open(config.CODE_FILE, "r") as f:
+    if source == "file" and Path(get("CODE_FILE")).exists():
+        with open(get("CODE_FILE"), "r") as f:
             # Treat file as a list of snippets separated by double newlines or similar
             content = f.read().split("\n\n")
             return normalize_text(random.choice(content).strip())
@@ -74,17 +84,20 @@ def generate_code_snippet(language: str = "python") -> str:
     return normalize_text(snippets.get(language, snippets["python"]))
 
 
-async def generate_code_snippet_async(language: str = "python") -> str:
+async def generate_code_snippet_async(
+    language: str = "python", config_overrides: Optional[Dict[str, Any]] = None
+) -> str:
     """Generate a random code snippet asynchronously.
 
     Args:
         language: Programming language for the snippet (python, rust, c, cpp)
+        config_overrides: Optional dictionary of configuration overrides
 
     Returns:
         Code snippet as a string
     """
     # Run the synchronous function in a thread to avoid blocking
-    return await asyncio.to_thread(generate_code_snippet, language)
+    return await asyncio.to_thread(generate_code_snippet, language, config_overrides)
 
 
 def _generate_python_snippet() -> str:

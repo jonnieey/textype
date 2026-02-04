@@ -83,8 +83,8 @@ class TypingTutor(App):
         self.current_chunk_errors: int = 0
         self.chunks_completed: int = 0  # Track chunks for shuffle logic
 
-        self.show_stats_pref: bool = config.SHOW_STATS_ON_END
         self.profile: Optional[UserProfile] = None
+        self.show_stats_pref: bool = self._get_config("SHOW_STATS_ON_END")
         self.resolver: XKBResolver = XKBResolver()
         self.target_keys: List[PhysicalKey] = []
         self.last_drill_passed: bool = False
@@ -114,6 +114,13 @@ class TypingTutor(App):
                 self.char_to_physical[char_shifted] = key
             self.resolver.update_modifiers(shift=False)  # Reset
 
+    def _get_config(self, key: str):
+        """Get configuration value from profile or fallback to default."""
+        if self.profile:
+            return self.profile.get_config(key)
+        else:
+            return getattr(config, key)
+
     def compose(self) -> ComposeResult:
         """Compose the main application UI.
 
@@ -129,7 +136,7 @@ class TypingTutor(App):
             yield Static("", id="typing-area")
 
             # Keyboard UI with initial visibility check
-            kb_classes = "" if config.SHOW_QWERTY else "hidden"
+            kb_classes = "" if self._get_config("SHOW_QWERTY") else "hidden"
 
             with Vertical(id="keyboard-section", classes=kb_classes):
                 for row in KEYBOARD_ROWS:
@@ -162,7 +169,7 @@ class TypingTutor(App):
                             )
 
             # Finger Guide UI with initial visibility check
-            fg_classes = "" if config.SHOW_FINGERS else "hidden"
+            fg_classes = "" if self._get_config("SHOW_FINGERS") else "hidden"
             with Horizontal(id="finger-guide-wrapper", classes=fg_classes):
                 with Horizontal(id="finger-guide"):
                     for fid, dimensions in FINGER_HEIGHTS.items():
@@ -188,7 +195,7 @@ class TypingTutor(App):
         """
         if self.session_active and self.session_start_time:
             elapsed = time.time() - self.session_start_time
-            if elapsed >= config.DRILL_DURATION:
+            if elapsed >= self._get_config("DRILL_DURATION"):
                 self.end_drill_session()
             else:
                 self.refresh_display()
@@ -443,7 +450,7 @@ class TypingTutor(App):
                 self.typed_text += char  # Add the *actual* char typed
             else:
                 self.current_chunk_errors += 1
-                if not config.HARD_MODE:
+                if not self._get_config("HARD_MODE"):
                     self.typed_text += char
 
         self.refresh_display()
@@ -458,10 +465,10 @@ class TypingTutor(App):
         # Time Calculation
         if self.session_start_time and self.session_active:
             elapsed = time.time() - self.session_start_time
-            remaining = max(0, config.DRILL_DURATION - elapsed)
+            remaining = max(0, self._get_config("DRILL_DURATION") - elapsed)
         else:
             elapsed = 0
-            remaining = config.DRILL_DURATION
+            remaining = self._get_config("DRILL_DURATION")
 
         mins, secs = divmod(int(remaining), 60)
         timer_str = f"{mins:02}:{secs:02}"
@@ -617,14 +624,14 @@ class TypingTutor(App):
 
         # No pre-fetched content available, generate synchronously
         if not self.profile:
-            sentence = generate_sentence()
+            sentence = generate_sentence(None)
             self.target_keys = self._sentence_to_physical_keys(sentence)
             # Start pre-fetching for future (once profile is selected)
             return sentence
 
         practice_mode = self.profile.config_overrides.get("PRACTICE_MODE", "curriculum")
         if practice_mode == "sentences":
-            sentence = generate_sentence()
+            sentence = generate_sentence(self.profile.config)
             self.target_keys = self._sentence_to_physical_keys(sentence)
             # Start pre-fetching next chunk
             self._start_prefetching()
@@ -641,7 +648,9 @@ class TypingTutor(App):
                 allowed_languages = ["python", "rust", "c", "cpp"]
 
             language = random.choice(allowed_languages)
-            snippet = code_generator.generate_code_snippet(language)
+            snippet = code_generator.generate_code_snippet(
+                language, self.profile.config
+            )
             self.target_keys = self._sentence_to_physical_keys(snippet)
             self.current_code_language = language
             # Start pre-fetching next chunk
@@ -681,7 +690,7 @@ class TypingTutor(App):
 
         try:
             if practice_mode == "sentences":
-                text = await generate_sentence_async()
+                text = await generate_sentence_async(self.profile.config)
                 keys = self._sentence_to_physical_keys(text)
                 language = None
             elif practice_mode == "code":
@@ -692,7 +701,9 @@ class TypingTutor(App):
                 if not allowed_languages:
                     allowed_languages = ["python", "rust", "c", "cpp"]
                 language = random.choice(allowed_languages)
-                text = await code_generator.generate_code_snippet_async(language)
+                text = await code_generator.generate_code_snippet_async(
+                    language, self.profile.config
+                )
                 keys = self._sentence_to_physical_keys(text)
             else:
                 # Curriculum mode - synchronous generation (fast, no async needed)
@@ -856,7 +867,7 @@ class TypingTutor(App):
         are met, updates user progress, and shows statistics screen.
         """
         # Calculate final stats
-        elapsed = config.DRILL_DURATION / 60  # Normalized to full duration
+        elapsed = self._get_config("DRILL_DURATION") / 60  # Normalized to full duration
 
         wpm = round((self.cumulative_typed_chars / 5) / elapsed)
         total_ops = self.cumulative_typed_chars + self.cumulative_errors
@@ -930,15 +941,15 @@ class TypingTutor(App):
 
         Updates UI visibility and preferences based on profile overrides.
         """
-        overrides = self.profile.config_overrides
-        self.show_stats_pref = overrides.get("SHOW_STATS_ON_END", True)
+        config = self.profile.config
+        self.show_stats_pref = config["SHOW_STATS_ON_END"]
 
         # Update UI visibility
         self.query_one("#keyboard-section").set_class(
-            not overrides.get("SHOW_QWERTY", True), "hidden"
+            not config["SHOW_QWERTY"], "hidden"
         )
         self.query_one("#finger-guide-wrapper").set_class(
-            not overrides.get("SHOW_FINGERS", True), "hidden"
+            not config["SHOW_FINGERS"], "hidden"
         )
 
     def generate_lesson_text(self) -> str:
@@ -959,14 +970,14 @@ class TypingTutor(App):
 
         # Handle sentence algorithm specially
         if algo_type == "sentence":
-            sentence = generate_sentence()
+            sentence = generate_sentence(self.profile.config)
             self.target_keys = self._sentence_to_physical_keys(sentence)
             return sentence
 
         row_key = lesson.get("row", "home")
         row_data = LAYOUT.get(row_key)
 
-        should_shuffle = self.chunks_completed >= config.SHUFFLE_AFTER
+        should_shuffle = self.chunks_completed >= self._get_config("SHUFFLE_AFTER")
 
         dispatch = {
             "repeat": lambda: algos.single_key_repeat(

@@ -11,9 +11,8 @@ from textual.containers import Container, Center, Middle, Horizontal
 from textual.screen import Screen
 from textual.binding import Binding
 
-import textype.config as config
 
-from textype.models import UserProfile
+from textype.models import UserProfile, MAX_FINGER_HEIGHT
 
 
 class FingerColumn(Container):
@@ -51,7 +50,7 @@ class FingerColumn(Container):
             Widgets for the finger column
         """
         spacer = Static("")
-        spacer.styles.height = config.MAX_FINGER_HEIGHT - self.height
+        spacer.styles.height = MAX_FINGER_HEIGHT - self.height
         yield spacer
 
         body = Static(

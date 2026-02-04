@@ -14,6 +14,24 @@ from collections import namedtuple
 PROFILES_DIR: str = user_data_dir("textype")
 """Directory where user profile data is stored."""
 
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "SHOW_QWERTY": False,
+    "SHOW_FINGERS": False,
+    "HARD_MODE": True,
+    "SHOW_STATS_ON_END": False,
+    "DRILL_DURATION": 300,
+    "SHUFFLE_AFTER": 5,
+    "SENTENCE_SOURCE": "api",
+    "CODE_SOURCE": "local",
+    "SENTENCES_FILE": "sentences.txt",
+    "CODE_FILE": "snippets.py",
+    "CODE_COMMAND": "",
+    "QUOTE_API_URL": "https://api.quotify.top/random",
+    "AI_ENDPOINT": "http://localhost:11434/api/generate",
+    "PRACTICE_MODE": "curriculum",
+    "CODE_LANGUAGES": "python,rust,c,cpp",
+}
+
 
 @dataclass
 class UserProfile:
@@ -38,12 +56,32 @@ class UserProfile:
         default_factory=lambda: {
             "SHOW_QWERTY": True,
             "SHOW_FINGERS": True,
-            "SHOW_STATS_ON_END": True,
             "HARD_MODE": True,
+            "SHOW_STATS_ON_END": True,
+            "DRILL_DURATION": 300,
+            "SHUFFLE_AFTER": 5,
+            "SENTENCE_SOURCE": "api",
+            "CODE_SOURCE": "local",
+            "SENTENCES_FILE": "sentences.txt",
+            "CODE_FILE": "snippets.py",
+            "CODE_COMMAND": "",
+            "QUOTE_API_URL": "https://api.quotify.top/random",
+            "AI_ENDPOINT": "http://localhost:11434/api/generate",
             "PRACTICE_MODE": "curriculum",  # "curriculum", "sentences", or "code"
             "CODE_LANGUAGES": "python,rust,c,cpp",  # comma-separated list
         }
     )
+
+    def get_config(self, key: str) -> Any:
+        """Get a configuration value, falling back to defaults."""
+        return self.config_overrides.get(key, DEFAULT_CONFIG.get(key))
+
+    @property
+    def config(self) -> Dict[str, Any]:
+        """Get the merged configuration dictionary (overrides + defaults)."""
+        merged = DEFAULT_CONFIG.copy()
+        merged.update(self.config_overrides)
+        return merged
 
     def save(self) -> None:
         """Save the user profile to disk.
