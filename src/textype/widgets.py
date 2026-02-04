@@ -178,10 +178,10 @@ class ConfigWidgetFactory:
 
         select_widget = Select(
             options=[("True", "True"), ("False", "False")],
-            value=str_value,
             id=f"input-{key}",
             classes="config-select",
         )
+        select_widget.value = str_value
         return select_widget, f"input-{key}"
 
     @staticmethod
@@ -237,10 +237,10 @@ class ConfigWidgetFactory:
 
         select_widget = Select(
             options=options,
-            value=str_value,
             id=f"input-{key}",
             classes="config-select",
         )
+        select_widget.value = str_value
         return select_widget, f"input-{key}"
 
     @staticmethod
