@@ -10,7 +10,6 @@ import textype.config as config
 from textype.text_normalizer import normalize_text
 from textype.curriculum import SENTENCES
 
-# Optional dependencies
 try:
     import requests
 
@@ -76,7 +75,6 @@ def generate_sentence(config_overrides: Optional[Dict[str, Any]] = None) -> str:
                 if lines:
                     return normalize_text(random.choice(lines))
 
-    # 3. Fallback: Static list in config.py
     return normalize_text(random.choice(SENTENCES))
 
 

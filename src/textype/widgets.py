@@ -4,7 +4,7 @@ This module defines custom widgets and modal screens used in the
 Textype application, including finger visualization, statistics display,
 and profile selection.
 """
-from typing import Optional
+from typing import Optional, Dict, Any, Tuple
 from textual.app import ComposeResult
 from textual.widgets import Static, Label, Button, Input, ListItem, ListView, Select
 from textual.containers import (
@@ -128,6 +128,121 @@ class StatsScreen(Screen):
             self.dismiss("next")
 
 
+class ConfigWidgetFactory:
+    """Factory for creating configuration widgets based on configuration types."""
+
+    @staticmethod
+    def create_widget(
+        key: str,
+        label: str,
+        effective_value: Any,
+        default_value: Any,
+        modified_config: Dict[str, Any],
+    ) -> Tuple[Any, str]:
+        """Create an appropriate widget for a configuration value.
+
+        Args:
+            key: Configuration key
+            label: Display label
+            effective_value: Current effective value (defaults + overrides)
+            default_value: Default value from DEFAULT_CONFIG
+            modified_config: Dictionary to track modified configuration
+
+        Returns:
+            Tuple of (widget, widget_id)
+        """
+        expected_type = type(default_value)
+
+        if expected_type == bool:
+            return ConfigWidgetFactory._create_boolean_widget(key, effective_value)
+        elif key in ("PRACTICE_MODE", "SENTENCE_SOURCE", "CODE_SOURCE"):
+            return ConfigWidgetFactory._create_select_widget(key, effective_value)
+        else:
+            return ConfigWidgetFactory._create_input_widget(
+                key, label, effective_value, default_value
+            )
+
+    @staticmethod
+    def _create_boolean_widget(key: str, effective_value: Any) -> Tuple[Select, str]:
+        """Create a Select dropdown for boolean values."""
+        if isinstance(effective_value, bool):
+            str_value = "True" if effective_value else "False"
+        else:
+            str_value = str(effective_value).strip()
+            if str_value.lower() in ("true", "yes", "1", "on"):
+                str_value = "True"
+            elif str_value.lower() in ("false", "no", "0", "off"):
+                str_value = "False"
+            else:
+                str_value = "False"
+
+        select_widget = Select(
+            options=[("True", "True"), ("False", "False")],
+            value=str_value,
+            id=f"input-{key}",
+            classes="config-select",
+        )
+        return select_widget, f"input-{key}"
+
+    @staticmethod
+    def _create_select_widget(key: str, effective_value: Any) -> Tuple[Select, str]:
+        """Create a Select dropdown for mode/source selection."""
+        if key == "PRACTICE_MODE":
+            options = [
+                ("curriculum", "curriculum"),
+                ("sentences", "sentences"),
+                ("code", "code"),
+            ]
+            default_val = "curriculum"
+        elif key == "SENTENCE_SOURCE":
+            options = [
+                ("local", "local"),
+                ("file", "file"),
+                ("api", "api"),
+                ("cmd", "cmd"),
+                ("ai", "ai"),
+            ]
+            default_val = "api"
+        else:  # CODE_SOURCE
+            options = [
+                ("local", "local"),
+                ("file", "file"),
+                ("cmd", "cmd"),
+                ("ai", "ai"),
+            ]
+            default_val = "local"
+
+        str_value = str(effective_value).strip()
+        if not str_value or str_value == "":
+            str_value = default_val
+
+        select_widget = Select(
+            options=options,
+            value=str_value,
+            id=f"input-{key}",
+            classes="config-select",
+        )
+        return select_widget, f"input-{key}"
+
+    @staticmethod
+    def _create_input_widget(
+        key: str, label: str, effective_value: Any, default_value: Any
+    ) -> Tuple[Input, str]:
+        """Create an Input widget for other configuration types."""
+        placeholder_text = (
+            f"Default: {default_value}"
+            if default_value
+            else f"Enter {label.lower()}..."
+        )
+        input_widget = Input(
+            value=str(effective_value),
+            placeholder=placeholder_text,
+            id=f"input-{key}",
+            classes="config-input",
+        )
+        return input_widget, f"input-{key}"
+
+
 class ProfileInfoScreen(Screen):
     """Screen displaying profile information and editable configuration."""
 
@@ -233,95 +348,12 @@ class ProfileInfoScreen(Screen):
         """Create an appropriate widget for a configuration value."""
         # Get the current effective value (defaults + overrides)
         effective_value = self.profile.config.get(key, "")
-        # Check if this value is an override or the default
         default_value = DEFAULT_CONFIG.get(key, "")
-        expected_type = type(default_value)
 
-        # Determine widget based on key and expected type
-        if expected_type == bool:
-            # Create a Select dropdown for boolean values
-            # Convert boolean to string "True"/"False"
-            if isinstance(effective_value, bool):
-                str_value = "True" if effective_value else "False"
-            else:
-                # Try to parse string value
-                str_value = str(effective_value).strip()
-                if str_value.lower() in ("true", "yes", "1", "on"):
-                    str_value = "True"
-                elif str_value.lower() in ("false", "no", "0", "off"):
-                    str_value = "False"
-                else:
-                    # Default to "False"
-                    str_value = "False"
-
-            select_widget = Select(
-                options=[
-                    ("True", "True"),
-                    ("False", "False"),
-                ],
-                value=str_value,
-                id=f"input-{key}",
-                classes="config-select",
-            )
-            widget = select_widget
-        elif key in ("PRACTICE_MODE", "SENTENCE_SOURCE", "CODE_SOURCE"):
-            # Create dropdowns for mode/source selection
-            if key == "PRACTICE_MODE":
-                options = [
-                    ("curriculum", "curriculum"),
-                    ("sentences", "sentences"),
-                    ("code", "code"),
-                ]
-                # Default value if empty
-                default_val = "curriculum"
-            elif key == "SENTENCE_SOURCE":
-                options = [
-                    ("local", "local"),
-                    ("file", "file"),
-                    ("api", "api"),
-                    ("cmd", "cmd"),
-                    ("ai", "ai"),
-                ]
-                # Default value if empty
-                default_val = "api"
-            elif key == "CODE_SOURCE":
-                options = [
-                    ("local", "local"),
-                    ("file", "file"),
-                    ("cmd", "cmd"),
-                    ("ai", "ai"),
-                ]
-                # Default value if empty
-                default_val = "local"
-
-            # Use effective value
-            str_value = str(effective_value).strip()
-            if not str_value or str_value == "":
-                str_value = default_val
-
-            select_widget = Select(
-                options=options,
-                value=str_value,
-                id=f"input-{key}",
-                classes="config-select",
-            )
-            widget = select_widget
-        else:
-            # Create Input widget for other types
-            # Show effective value as the input value
-            # Show default value as placeholder for reference
-            placeholder_text = (
-                f"Default: {default_value}"
-                if default_value
-                else f"Enter {label.lower()}..."
-            )
-            input_widget = Input(
-                value=str(effective_value),
-                placeholder=placeholder_text,
-                id=f"input-{key}",
-                classes="config-input",
-            )
-            widget = input_widget
+        # Use factory to create widget
+        widget, widget_id = ConfigWidgetFactory.create_widget(
+            key, label, effective_value, default_value, self.modified_config
+        )
 
         return Horizontal(
             Label(f"{label}:", classes="config-label"), widget, classes="config-row"
@@ -410,17 +442,20 @@ class ProfileInfoScreen(Screen):
             self.dismiss(("cancelled", None))
 
         elif event.button.id == "delete-button":
-            # Show confirmation screen for deletion
-            def handle_confirmation(result: tuple):
-                action, confirmed = result
-                if action == "confirm" and confirmed:
-                    self.dismiss(("delete", self.profile.name))
-                # else do nothing (stay on screen)
-
-            self.app.push_screen(
-                ConfirmationScreen(f"Delete profile '{self.profile.name}'?"),
-                handle_confirmation,
+            self._show_delete_confirmation(
+                self.profile.name, self._handle_profile_deletion
             )
+
+    def _handle_profile_deletion(self, confirmed: bool, profile_name: str) -> None:
+        """Handle the result of profile deletion confirmation.
+
+        Args:
+            confirmed: Whether deletion was confirmed
+            profile_name: Name of the profile to delete
+        """
+        if confirmed:
+            self.dismiss(("delete", profile_name))
+        # else do nothing (stay on screen)
 
 
 class ProfileSelectScreen(Screen):
@@ -514,49 +549,70 @@ class ProfileSelectScreen(Screen):
         """
         if event.button.id == "delete-button":
             if self.selected_profile:
-                # Show confirmation screen
-                def handle_confirmation(result: tuple):
-                    action, confirmed = result
-                    if action == "confirm" and confirmed:
-                        # Delete the profile
-                        deleted = UserProfile.delete(self.selected_profile)
-                        if deleted:
-                            self.notify(f"Profile '{self.selected_profile}' deleted.")
-                            # Clear current profile if it matches the deleted one
-                            if (
-                                hasattr(self.app, "profile")
-                                and self.app.profile
-                                and self.app.profile.name == self.selected_profile
-                            ):
-                                self.app.profile = None
-                                self.notify(
-                                    "Current profile cleared. Please select a new profile."
-                                )
-                            # Refresh list and reset selection
-                            self.selected_profile = None
-                            delete_button = self.query_one("#delete-button")
-                            delete_button.disabled = True
-
-                            async def refresh_and_update_focus():
-                                await self.refresh_list()
-                                lst = self.query_one("#profile-list")
-                                if lst.children:
-                                    lst.focus()
-                                    lst.index = 0
-                                else:
-                                    self.query_one("#new-profile-input").focus()
-
-                            self.app.run_worker(refresh_and_update_focus)
-                        else:
-                            self.notify(
-                                f"Failed to delete profile '{self.selected_profile}'.",
-                                severity="error",
-                            )
-
-                self.app.push_screen(
-                    ConfirmationScreen(f"Delete profile '{self.selected_profile}'?"),
-                    handle_confirmation,
+                self._show_delete_confirmation(
+                    self.selected_profile, self._handle_profile_list_deletion
                 )
+
+    def _show_delete_confirmation(self, profile_name: str, callback) -> None:
+        """Show confirmation screen for profile deletion.
+
+        Args:
+            profile_name: Name of the profile to delete
+            callback: Function to call with confirmation result
+        """
+
+        def handle_confirmation(result: tuple):
+            action, confirmed = result
+            if action == "confirm":
+                callback(confirmed, profile_name)
+
+        self.app.push_screen(
+            ConfirmationScreen(f"Delete profile '{profile_name}'?"),
+            handle_confirmation,
+        )
+
+    def _handle_profile_list_deletion(self, confirmed: bool, profile_name: str) -> None:
+        """Handle deletion of a profile from the profile list.
+
+        Args:
+            confirmed: Whether deletion was confirmed
+            profile_name: Name of the profile to delete
+        """
+        if not confirmed:
+            return
+
+        # Delete the profile
+        deleted = UserProfile.delete(profile_name)
+        if deleted:
+            self.notify(f"Profile '{profile_name}' deleted.")
+            # Clear current profile if it matches the deleted one
+            if (
+                hasattr(self.app, "profile")
+                and self.app.profile
+                and self.app.profile.name == profile_name
+            ):
+                self.app.profile = None
+                self.notify("Current profile cleared. Please select a new profile.")
+            # Refresh list and reset selection
+            self.selected_profile = None
+            delete_button = self.query_one("#delete-button")
+            delete_button.disabled = True
+
+            async def refresh_and_update_focus():
+                await self.refresh_list()
+                lst = self.query_one("#profile-list")
+                if lst.children:
+                    lst.focus()
+                    lst.index = 0
+                else:
+                    self.query_one("#new-profile-input").focus()
+
+            self.app.run_worker(refresh_and_update_focus)
+        else:
+            self.notify(
+                f"Failed to delete profile '{profile_name}'.",
+                severity="error",
+            )
 
     async def refresh_list(self) -> None:
         """Refresh the list of available profiles.

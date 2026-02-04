@@ -1,5 +1,6 @@
 /* styles.tcss */
 
+/* Color Variables */
 #main-container {
     height: 100%;
     background: #1a1b26;

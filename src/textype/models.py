@@ -14,6 +14,7 @@ from collections import namedtuple
 PROFILES_DIR: str = user_data_dir("textype")
 """Directory where user profile data is stored."""
 
+# Default configuration values for new profiles
 DEFAULT_CONFIG: Dict[str, Any] = {
     "SHOW_QWERTY": False,
     "SHOW_FINGERS": False,
@@ -30,6 +31,14 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "AI_ENDPOINT": "http://localhost:11434/api/generate",
     "PRACTICE_MODE": "curriculum",
     "CODE_LANGUAGES": "python,rust,c,cpp",
+}
+
+# Initial overrides for new user profiles (different from defaults for better UX)
+INITIAL_PROFILE_OVERRIDES: Dict[str, Any] = {
+    "SHOW_QWERTY": True,  # Show keyboard by default for new users
+    "SHOW_FINGERS": True,  # Show finger guide by default for new users
+    "SHOW_STATS_ON_END": True,  # Show stats automatically for new users
+    # Other values use DEFAULT_CONFIG values
 }
 
 
@@ -53,32 +62,27 @@ class UserProfile:
     level: int = 1
     # Profile-specific overrides for config
     config_overrides: Dict[str, Any] = field(
-        default_factory=lambda: {
-            "SHOW_QWERTY": True,
-            "SHOW_FINGERS": True,
-            "HARD_MODE": True,
-            "SHOW_STATS_ON_END": True,
-            "DRILL_DURATION": 300,
-            "SHUFFLE_AFTER": 5,
-            "SENTENCE_SOURCE": "api",
-            "CODE_SOURCE": "local",
-            "SENTENCES_FILE": "sentences.txt",
-            "CODE_FILE": "snippets.py",
-            "CODE_COMMAND": "",
-            "QUOTE_API_URL": "https://api.quotify.top/random",
-            "AI_ENDPOINT": "http://localhost:11434/api/generate",
-            "PRACTICE_MODE": "curriculum",  # "curriculum", "sentences", or "code"
-            "CODE_LANGUAGES": "python,rust,c,cpp",  # comma-separated list
-        }
+        default_factory=lambda: INITIAL_PROFILE_OVERRIDES.copy()
     )
 
     def get_config(self, key: str) -> Any:
-        """Get a configuration value, falling back to defaults."""
+        """Get a configuration value, falling back to defaults.
+
+        Args:
+            key: Configuration key to retrieve
+
+        Returns:
+            Configuration value (override if exists, otherwise default)
+        """
         return self.config_overrides.get(key, DEFAULT_CONFIG.get(key))
 
     @property
     def config(self) -> Dict[str, Any]:
-        """Get the merged configuration dictionary (overrides + defaults)."""
+        """Get the merged configuration dictionary (overrides + defaults).
+
+        Returns:
+            Complete configuration dictionary with defaults and overrides merged
+        """
         merged = DEFAULT_CONFIG.copy()
         merged.update(self.config_overrides)
         return merged
