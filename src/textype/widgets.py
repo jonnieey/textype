@@ -6,13 +6,19 @@ and profile selection.
 """
 from typing import Optional
 from textual.app import ComposeResult
-from textual.widgets import Static, Label, Button, Input, ListItem, ListView
-from textual.containers import Container, Center, Middle, Horizontal
+from textual.widgets import Static, Label, Button, Input, ListItem, ListView, Select
+from textual.containers import (
+    Container,
+    Center,
+    Middle,
+    Horizontal,
+    ScrollableContainer,
+)
 from textual.screen import Screen
 from textual.binding import Binding
 
 
-from textype.models import UserProfile, MAX_FINGER_HEIGHT
+from textype.models import UserProfile, MAX_FINGER_HEIGHT, DEFAULT_CONFIG
 
 
 class FingerColumn(Container):
@@ -123,7 +129,7 @@ class StatsScreen(Screen):
 
 
 class ProfileInfoScreen(Screen):
-    """Screen displaying profile information and management options."""
+    """Screen displaying profile information and editable configuration."""
 
     def __init__(self, profile: UserProfile) -> None:
         """Initialize the profile info screen.
@@ -133,42 +139,240 @@ class ProfileInfoScreen(Screen):
         """
         super().__init__()
         self.profile = profile
+        self.original_config = profile.config_overrides.copy()
+        self.modified_config = profile.config_overrides.copy()
 
     def compose(self) -> ComposeResult:
         """Compose the profile info screen.
 
         Yields:
-            Widgets for profile information and actions
+            Widgets for profile information and editable configuration
         """
         with Center():
             with Middle(id="profile-info-modal"):
                 yield Label(f"PROFILE: {self.profile.name.upper()}", id="stats-title")
-                yield Label(
-                    f"Current Lesson: {self.profile.get_current_lesson_name()}",
-                    classes="stat-line",
-                )
-                yield Label(
-                    f"WPM Record: {self.profile.wpm_record}", classes="stat-line"
-                )
-                yield Label(
-                    f"Total Drills: {self.profile.total_drills}", classes="stat-line"
-                )
-                with Horizontal():
+
+                # Read-only profile information in a scrollable container
+                with ScrollableContainer(classes="profile-section"):
+                    yield Label("Profile Information", classes="section-title")
+                    yield Label(
+                        f"Current Lesson: {self.profile.get_current_lesson_name()}",
+                        classes="stat-line",
+                    )
+                    yield Label(
+                        f"Current Lesson Index: {self.profile.current_lesson_index}",
+                        classes="stat-line",
+                    )
+                    yield Label(
+                        f"WPM Record: {self.profile.wpm_record}", classes="stat-line"
+                    )
+                    yield Label(
+                        f"Total Drills: {self.profile.total_drills}",
+                        classes="stat-line",
+                    )
+                    yield Label(f"Level: {self.profile.level}", classes="stat-line")
+
+                # Editable configuration
+                with ScrollableContainer(classes="config-section"):
+                    yield Label("Configuration Settings", classes="section-title")
+
+                    # UI Configuration
+                    yield Label("UI Configuration", classes="subsection-title")
+                    yield self._create_config_widget("SHOW_QWERTY", "Show Keyboard")
+                    yield self._create_config_widget(
+                        "SHOW_FINGERS", "Show Finger Guide"
+                    )
+                    yield self._create_config_widget(
+                        "SHOW_STATS_ON_END", "Show Stats Automatically"
+                    )
+                    yield self._create_config_widget(
+                        "HARD_MODE", "Hard Mode (errors prevent progress)"
+                    )
+
+                    # Practice Settings
+                    yield Label("Practice Settings", classes="subsection-title")
+                    yield self._create_config_widget(
+                        "DRILL_DURATION", "Drill Duration (seconds)"
+                    )
+                    yield self._create_config_widget(
+                        "SHUFFLE_AFTER", "Shuffle After (repetitions)"
+                    )
+                    yield self._create_config_widget("PRACTICE_MODE", "Practice Mode")
+                    yield self._create_config_widget(
+                        "CODE_LANGUAGES", "Code Languages (comma-separated)"
+                    )
+
+                    # Sentence Generation
+                    yield Label("Sentence Generation", classes="subsection-title")
+                    yield self._create_config_widget(
+                        "SENTENCE_SOURCE", "Sentence Source"
+                    )
+                    yield self._create_config_widget(
+                        "SENTENCES_FILE", "Sentences File Path"
+                    )
+                    yield self._create_config_widget("QUOTE_API_URL", "Quote API URL")
+                    yield self._create_config_widget(
+                        "CODE_COMMAND", "Command for Sentence Generation"
+                    )
+                    yield self._create_config_widget("AI_ENDPOINT", "AI Endpoint URL")
+
+                    # Code Generation
+                    yield Label("Code Generation", classes="subsection-title")
+                    yield self._create_config_widget("CODE_SOURCE", "Code Source")
+                    yield self._create_config_widget(
+                        "CODE_FILE", "Code Snippets File Path"
+                    )
+
+                # Action buttons
+                with Horizontal(classes="action-buttons"):
+                    yield Button("Save Changes", variant="primary", id="save-button")
+                    yield Button("Cancel", variant="default", id="cancel-button")
                     yield Button("Delete Profile", variant="error", id="delete-button")
-                    yield Button("Back", variant="primary", id="back-button")
+
+    def _create_config_widget(self, key: str, label: str) -> Horizontal:
+        """Create an appropriate widget for a configuration value."""
+        value = self.modified_config.get(key, "")
+        expected_type = type(DEFAULT_CONFIG.get(key))
+
+        # Determine widget based on key and expected type
+        if expected_type == bool:
+            # Create a Select dropdown for boolean values
+            # Convert boolean to string "True"/"False"
+            if isinstance(value, bool):
+                str_value = "True" if value else "False"
+            else:
+                # Try to parse string value
+                str_value = str(value).strip()
+                if str_value.lower() in ("true", "yes", "1", "on"):
+                    str_value = "True"
+                elif str_value.lower() in ("false", "no", "0", "off"):
+                    str_value = "False"
+                else:
+                    # Default to "False"
+                    str_value = "False"
+
+            select_widget = Select(
+                options=[
+                    ("True", "True"),
+                    ("False", "False"),
+                ],
+                value=str_value,
+                id=f"input-{key}",
+                classes="config-select",
+            )
+            widget = select_widget
+        elif key in ("PRACTICE_MODE", "SENTENCE_SOURCE", "CODE_SOURCE"):
+            # Create dropdowns for mode/source selection
+            if key == "PRACTICE_MODE":
+                options = [
+                    ("curriculum", "curriculum"),
+                    ("sentences", "sentences"),
+                    ("code", "code"),
+                ]
+                # Default value if empty
+                default_val = "curriculum"
+            elif key == "SENTENCE_SOURCE":
+                options = [
+                    ("local", "local"),
+                    ("file", "file"),
+                    ("api", "api"),
+                    ("cmd", "cmd"),
+                    ("ai", "ai"),
+                ]
+                # Default value if empty
+                default_val = "api"
+            elif key == "CODE_SOURCE":
+                options = [
+                    ("local", "local"),
+                    ("file", "file"),
+                    ("cmd", "cmd"),
+                    ("ai", "ai"),
+                ]
+                # Default value if empty
+                default_val = "local"
+
+            # Use value if not empty, otherwise default
+            str_value = str(value).strip()
+            if not str_value or str_value == "":
+                str_value = default_val
+
+            select_widget = Select(
+                options=options,
+                value=str_value,
+                id=f"input-{key}",
+                classes="config-select",
+            )
+            widget = select_widget
+        else:
+            # Create Input widget for other types
+            input_widget = Input(
+                value=str(value),
+                placeholder=f"Enter {label.lower()}...",
+                id=f"input-{key}",
+                classes="config-input",
+            )
+            widget = input_widget
+
+        return Horizontal(
+            Label(f"{label}:", classes="config-label"), widget, classes="config-row"
+        )
 
     def on_mount(self) -> None:
-        """Focus the back button when screen mounts."""
-        self.query_one("#back-button").focus()
+        """Focus the first config widget when screen mounts."""
+        first_widget = self.query_one(".config-input, .config-select")
+        if first_widget:
+            first_widget.focus()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Handle input changes to update modified configuration."""
+        self._handle_config_change(event.input.id, event.value)
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle select changes to update modified configuration."""
+        self._handle_config_change(event.select.id, event.select.value)
+
+    def _handle_config_change(self, widget_id: str, value: str) -> None:
+        """Update modified configuration when any config widget changes."""
+        if widget_id and widget_id.startswith("input-"):
+            key = widget_id.replace("input-", "")
+
+            # Determine expected type from DEFAULT_CONFIG
+            expected_type = type(DEFAULT_CONFIG.get(key))
+
+            # Convert to appropriate type
+            if expected_type == bool:
+                # Handle boolean values
+                if value.lower() in ("true", "yes", "1", "on"):
+                    self.modified_config[key] = True
+                elif value.lower() in ("false", "no", "0", "off"):
+                    self.modified_config[key] = False
+                else:
+                    # Keep as string, will be validated on save
+                    self.modified_config[key] = value
+            elif expected_type == int:
+                try:
+                    self.modified_config[key] = int(value)
+                except ValueError:
+                    # Keep as string, will be validated on save
+                    self.modified_config[key] = value
+            else:
+                # String or other types
+                self.modified_config[key] = value
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button press to dismiss screen.
+        """Handle button press actions."""
+        if event.button.id == "save-button":
+            # Save changes to profile
+            self.profile.config_overrides = self.modified_config.copy()
+            self.profile.save()
+            self.dismiss(("saved", self.profile.name))
 
-        Args:
-            event: Button press event
-        """
-        if event.button.id == "delete-button":
-            # Show confirmation screen
+        elif event.button.id == "cancel-button":
+            # Discard changes and return
+            self.dismiss(("cancelled", None))
+
+        elif event.button.id == "delete-button":
+            # Show confirmation screen for deletion
             def handle_confirmation(result: tuple):
                 action, confirmed = result
                 if action == "confirm" and confirmed:
@@ -179,8 +383,6 @@ class ProfileInfoScreen(Screen):
                 ConfirmationScreen(f"Delete profile '{self.profile.name}'?"),
                 handle_confirmation,
             )
-        else:
-            self.dismiss(("back", None))
 
 
 class ProfileSelectScreen(Screen):

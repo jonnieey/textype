@@ -150,3 +150,78 @@
 #profile-list ListItem:hover {
     background: #414868;
 }
+
+/* Profile Info Screen */
+#profile-info-modal {
+    width: 80;
+    height: 50;
+    background: #24283b;
+    border: thick #bb9af7;
+    padding: 1 2;
+}
+
+.profile-section {
+    margin-bottom: 1;
+    border: solid #414868;
+    padding: 1;
+    height: auto;
+    max-height: 10;
+    background: #1f2335;
+}
+
+.config-section {
+    height: 1fr;
+    border: solid #414868;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+.section-title {
+    width: 100%;
+    content-align: center middle;
+    text-style: bold;
+    color: #7aa2f7;
+    margin-bottom: 1;
+}
+
+.subsection-title {
+    width: 100%;
+    text-style: bold;
+    color: #9ece6a;
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+.config-row {
+    height: 4;
+    margin-bottom: 1;
+    align: center middle;
+}
+
+.config-label {
+    width: 30;
+    color: #c0caf5;
+}
+
+.config-input {
+    width: 35;
+    border: tall #414868;
+    background: #1f2335;
+    color: #c0caf5;
+}
+
+.config-select {
+    width: 35;
+    border: tall #414868;
+    background: #1f2335;
+    color: #c0caf5;
+}
+
+.action-buttons {
+    height: auto;
+    align: center middle;
+}
+
+.action-buttons > Button {
+    margin: 0 1;
+}

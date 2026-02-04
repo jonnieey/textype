@@ -301,7 +301,7 @@ class TypingTutor(App):
     def action_show_profile(self) -> None:
         """Show current profile information and management options.
 
-        Bound to P key. Shows profile info screen.
+        Bound to f5 key. Shows profile info screen.
         """
         if not self.profile:
             self.notify(
@@ -309,6 +309,11 @@ class TypingTutor(App):
                 severity="warning",
             )
             return
+
+        # Store current practice mode to detect changes
+        old_practice_mode = self.profile.config_overrides.get(
+            "PRACTICE_MODE", "curriculum"
+        )
 
         def handle_result(result: tuple):
             action, name = result
@@ -326,7 +331,21 @@ class TypingTutor(App):
                         self.action_switch_profile()
                 else:
                     self.notify(f"Failed to delete profile '{name}'.", severity="error")
-            # Back button just returns
+            elif action == "saved":
+                # Configuration saved, apply changes
+                self.apply_profile_config()
+                self.notify(f"Profile configuration saved for {name}")
+
+                # Check if practice mode changed and restart session if needed
+                new_practice_mode = self.profile.config_overrides.get(
+                    "PRACTICE_MODE", "curriculum"
+                )
+                if new_practice_mode != old_practice_mode:
+                    if self.session_active:
+                        self._reset_for_mode_change()
+                    else:
+                        self.start_new_session()
+            # cancelled or other actions just return
 
         self.push_screen(ProfileInfoScreen(self.profile), handle_result)
 
