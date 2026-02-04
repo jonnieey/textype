@@ -7,7 +7,7 @@ import asyncio
 import random
 import subprocess
 from pathlib import Path
-from text_normalizer import normalize_text
+from textype.text_normalizer import normalize_text
 
 # Optional dependencies
 try:
@@ -30,7 +30,7 @@ def generate_code_snippet(language: str = "python") -> str:
     Raises:
         ValueError: If language is not supported
     """
-    import config
+    import textype.config as config
 
     source = config.CODE_SOURCE
 

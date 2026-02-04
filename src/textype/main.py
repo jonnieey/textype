@@ -14,13 +14,21 @@ from textual.binding import Binding
 from textual import events
 from rich.text import Text
 
-import config
-from widgets import FingerColumn, StatsScreen, ProfileSelectScreen, ProfileInfoScreen
-from models import UserProfile
-import generator_algorithms as algos
-import code_generator
-from xkb_resolver import XKBResolver
-from keyboard import PhysicalKey, KEYBOARD_ROWS, FINGER_MAP, DISPLAY_MAP, LAYOUT
+import textype.code_generator as code_generator
+import textype.config as config
+import textype.generator_algorithms as algos
+
+from textype.curriculum import LESSONS
+from textype.keyboard import PhysicalKey, KEYBOARD_ROWS, FINGER_MAP, DISPLAY_MAP, LAYOUT
+from textype.models import UserProfile, FINGER_HEIGHTS
+from textype.sentence_generator import generate_sentence, generate_sentence_async
+from textype.widgets import (
+    FingerColumn,
+    StatsScreen,
+    ProfileSelectScreen,
+    ProfileInfoScreen,
+)
+from textype.xkb_resolver import XKBResolver
 
 
 class TypingTutor(App):
@@ -157,7 +165,7 @@ class TypingTutor(App):
             fg_classes = "" if config.SHOW_FINGERS else "hidden"
             with Horizontal(id="finger-guide-wrapper", classes=fg_classes):
                 with Horizontal(id="finger-guide"):
-                    for fid, dimensions in config.FINGER_HEIGHTS.items():
+                    for fid, dimensions in FINGER_HEIGHTS.items():
                         yield FingerColumn(
                             fid, dimensions.height, dimensions.width
                         )  # (h, w)
@@ -484,8 +492,8 @@ class TypingTutor(App):
                     mode_display = "CODE PRACTICE"
             else:
                 lesson_idx = self.profile.current_lesson_index
-                if lesson_idx < len(config.LESSONS):
-                    mode_display = config.LESSONS[lesson_idx]["name"]
+                if lesson_idx < len(LESSONS):
+                    mode_display = LESSONS[lesson_idx]["name"]
                 else:
                     mode_display = "Master Mode"
 
@@ -609,14 +617,14 @@ class TypingTutor(App):
 
         # No pre-fetched content available, generate synchronously
         if not self.profile:
-            sentence = algos.generate_sentence()
+            sentence = generate_sentence()
             self.target_keys = self._sentence_to_physical_keys(sentence)
             # Start pre-fetching for future (once profile is selected)
             return sentence
 
         practice_mode = self.profile.config_overrides.get("PRACTICE_MODE", "curriculum")
         if practice_mode == "sentences":
-            sentence = algos.generate_sentence()
+            sentence = generate_sentence()
             self.target_keys = self._sentence_to_physical_keys(sentence)
             # Start pre-fetching next chunk
             self._start_prefetching()
@@ -673,7 +681,7 @@ class TypingTutor(App):
 
         try:
             if practice_mode == "sentences":
-                text = await algos.generate_sentence_async()
+                text = await generate_sentence_async()
                 keys = self._sentence_to_physical_keys(text)
                 language = None
             elif practice_mode == "code":
@@ -866,14 +874,14 @@ class TypingTutor(App):
             if practice_mode == "curriculum":
                 # Curriculum mode: evaluate lesson requirements
                 self.previous_lesson_index = self.profile.current_lesson_index
-                lesson = config.LESSONS[self.profile.current_lesson_index]
+                lesson = LESSONS[self.profile.current_lesson_index]
                 passed = acc >= lesson["target_acc"] and wpm >= lesson["target_wpm"]
                 self.last_drill_passed = passed
 
                 if passed:
                     self.profile.current_lesson_index += 1
-                    if self.profile.current_lesson_index >= len(config.LESSONS):
-                        self.profile.current_lesson_index = len(config.LESSONS) - 1
+                    if self.profile.current_lesson_index >= len(LESSONS):
+                        self.profile.current_lesson_index = len(LESSONS) - 1
                     self.notify(f"LEVEL UP: {lesson['name']} Cleared!")
                 else:
                     self.notify(
@@ -946,12 +954,12 @@ class TypingTutor(App):
         Raises:
             KeyError: If row_key is not found in LAYOUT
         """
-        lesson = config.LESSONS[self.profile.current_lesson_index]
+        lesson = LESSONS[self.profile.current_lesson_index]
         algo_type = lesson.get("algo")
 
         # Handle sentence algorithm specially
         if algo_type == "sentence":
-            sentence = algos.generate_sentence()
+            sentence = generate_sentence()
             self.target_keys = self._sentence_to_physical_keys(sentence)
             return sentence
 

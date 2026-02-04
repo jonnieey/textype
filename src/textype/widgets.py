@@ -10,8 +10,10 @@ from textual.widgets import Static, Label, Button, Input, ListItem, ListView
 from textual.containers import Container, Center, Middle, Horizontal
 from textual.screen import Screen
 from textual.binding import Binding
-import config
-from models import UserProfile
+
+import textype.config as config
+
+from textype.models import UserProfile
 
 
 class FingerColumn(Container):

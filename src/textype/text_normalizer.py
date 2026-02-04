@@ -124,16 +124,11 @@ def normalize_text(text: str) -> str:
         "\u212b": "A",  # Angstrom sign
     }
 
-    # Create translation table
     trans_table = str.maketrans(replacements)
 
-    # Apply translations first (so mathematical symbols are replaced before decomposition)
     translated = text.translate(trans_table)
 
-    # Step 2: Decompose Unicode characters and remove diacritical marks
-    # Normalize to NFKD form (decompose characters into base + combining marks)
     decomposed = unicodedata.normalize("NFKD", translated)
-    # Remove combining diacritical marks (Unicode category starts with 'M')
     stripped = "".join(char for char in decomposed if not unicodedata.combining(char))
 
     return stripped

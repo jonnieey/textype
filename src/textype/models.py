@@ -8,6 +8,7 @@ import os
 from dataclasses import dataclass, asdict, field
 from typing import Dict, Any, List, Optional
 from platformdirs import user_data_dir
+from collections import namedtuple
 
 
 PROFILES_DIR: str = user_data_dir("textype")
@@ -129,10 +130,43 @@ class UserProfile:
             Lesson name string, or "Unknown" if index out of range.
         """
         try:
-            import config
+            from textype.curriculum import LESSONS
 
-            if self.current_lesson_index < len(config.LESSONS):
-                return config.LESSONS[self.current_lesson_index]["name"]
+            if self.current_lesson_index < len(LESSONS):
+                return LESSONS[self.current_lesson_index]["name"]
         except (ImportError, IndexError):
             pass
         return "Unknown"
+
+
+FingerDimensions = namedtuple("FingerDimensions", ["height", "width"])
+"""Dimensions for finger visualization columns.
+
+Attributes:
+    height: Vertical height of the finger column
+    width: Horizontal width of the finger column
+"""
+
+FINGER_HEIGHTS: Dict[str, FingerDimensions] = {
+    "L1": FingerDimensions(4, 7),
+    "L2": FingerDimensions(6, 7),
+    "L3": FingerDimensions(7, 7),
+    "L4": FingerDimensions(6, 7),
+    "THUMB": FingerDimensions(2, 20),
+    "R1": FingerDimensions(6, 7),
+    "R2": FingerDimensions(7, 7),
+    "R3": FingerDimensions(6, 7),
+    "R4": FingerDimensions(4, 7),
+}
+"""Dimensions for each finger's visualization column.
+
+Keys correspond to finger identifiers:
+- L1-L4: Left hand fingers (pinky to index)
+- R1-R4: Right hand fingers (index to pinky)
+- THUMB: Space bar thumb
+"""
+
+MAX_FINGER_HEIGHT: int = max(
+    dimensions.height for dimensions in FINGER_HEIGHTS.values()
+)
+"""Maximum height among all finger columns for alignment purposes."""
