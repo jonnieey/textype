@@ -647,11 +647,29 @@ class TypingTutor(App):
 
         # If the target char matches the shifted version but NOT the base version, we need shift.
         if target_char == shifted_char and target_char != base_char:
-            try:
-                self.query_one("#key-KEY_SHIFT_LEFT").add_class("active-key")
-                self.query_one("#key-KEY_SHIFT_RIGHT").add_class("active-key")
-            except Exception:
-                pass
+            fid = FINGER_MAP.get(physical_key)
+
+            # Determine which shift (left or right) based on hand
+            # If key is Left hand (L1-L4), use Right Shift.
+            # If key is Right hand (R1-R4), use Left Shift.
+            if fid:
+                shift_id = (
+                    f"#key-{PhysicalKey.KEY_SHIFT_RIGHT.name}"
+                    if fid.startswith("L")
+                    else f"#key-{PhysicalKey.KEY_SHIFT_LEFT.name}"
+                )
+                # Highlight shift key on keyboard
+                try:
+                    self.query_one(shift_id).add_class("active-key")
+                except Exception:
+                    pass
+
+                # Highlight shift finger on finger guide
+                shift_finger = "R4" if fid.startswith("L") else "L1"
+                try:
+                    self.query_one(f"#{shift_finger}").add_class("active-finger")
+                except Exception:
+                    pass
 
     def _get_key_characters(
         self, physical_key: PhysicalKey
