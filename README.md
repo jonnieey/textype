@@ -32,10 +32,8 @@ A modern, feature-rich typing tutor for the terminal with multiple practice mode
 # From source
 git clone https://github.com/jonnieey/textype
 cd textype
-pip install -e .
+uv tool install . or pip install -e .
 
-# Or via pip
-pip install textype-typing-tutor
 ```
 
 ### Basic Usage
