@@ -511,11 +511,21 @@ class TypingTutor(App):
             )
             if practice_mode == "sentences":
                 mode_display = "SENTENCE PRACTICE"
+                # Add source information
+                source = self._get_config("SENTENCE_SOURCE")
+                if source:
+                    source_display = source.upper()
+                    mode_display = f"{mode_display} ({source_display})"
             elif practice_mode == "code":
                 if self.current_code_language:
                     mode_display = f"CODE ({self.current_code_language.upper()})"
                 else:
                     mode_display = "CODE PRACTICE"
+                # Add source information
+                source = self._get_config("CODE_SOURCE")
+                if source:
+                    source_display = source.upper()
+                    mode_display = f"{mode_display} ({source_display})"
             else:
                 lesson_idx = self.profile.current_lesson_index
                 if lesson_idx < len(LESSONS):
