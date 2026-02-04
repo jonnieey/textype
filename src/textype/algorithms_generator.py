@@ -190,6 +190,8 @@ def rolls(
 
     seq = []
     for pattern in pool:
+        if not pattern:
+            continue
         seq.extend(pattern)
         seq.append(PhysicalKey.KEY_SPACE)
     return seq[:-1] if seq else []
@@ -214,6 +216,9 @@ def pseudo_words(row_keys: RowLayout, count: int = 10) -> List[PhysicalKey]:
         >>> # Might generate: "asdf jkl;" or "sadf lkj;"
     """
     all_keys = row_keys["left"] + row_keys["right"]
+    if not all_keys:
+        return []
+
     seq = []
     for _ in range(count):
         length = random.choice([3, 4, 5])

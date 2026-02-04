@@ -25,9 +25,9 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "textual[syntax]",
-  "pyyaml",
-  "platformdirs",
+  "textual==7.4.0",
+  "pyyaml==6.0.3",
+  "platformdirs==4.5.1",
 ]
 
 [tool.hatch.envs.dev]

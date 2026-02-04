@@ -1,0 +1,358 @@
+digraph TextypeFlows {
+    rankdir=TB;
+    node [shape=box, style=filled, fillcolor=lightblue];
+    edge [color=gray50];
+
+    /* ============================================
+       FLOW 1: ENHANCED CONFIGURATION FLOW
+       ============================================ */
+    subgraph cluster_config_flow {
+        label="Flow 1: Enhanced Configuration Flow (Hierarchical)";
+        labelloc=t;
+        fontsize=16;
+        color=blue;
+
+        config_defaults [label="config.py\nHardcoded defaults\nSHOW_QWERTY=False\nHARD_MODE=True\n...", shape=note, fillcolor=lightyellow];
+
+        default_config [label="models.py\nDEFAULT_CONFIG\nApplication defaults\nwith source configs", shape=note, fillcolor=lightyellow];
+
+        initial_overrides [label="models.py\nINITIAL_PROFILE_OVERRIDES\nBetter UX defaults\nSHOW_QWERTY=True\nSHOW_FINGERS=True", shape=note, fillcolor=lightyellow];
+
+        profile_overrides [label="UserProfile\nconfig_overrides\nUser customizations\nPRACTICE_MODE='code'\nCODE_LANGUAGES='python,rust'", shape=folder, fillcolor=lightgreen];
+
+        get_config_method [label="UserProfile.get_config(key)\nHierarchical lookup:\n1. profile.config_overrides\n2. INITIAL_PROFILE_OVERRIDES\n3. DEFAULT_CONFIG\n4. config.py defaults", shape=parallelogram];
+
+        merged_config [label="profile.config property\nMerged dictionary\nDefaults + overrides", shape=note, fillcolor=lightyellow];
+
+        ui_application [label="main.py\n_get_config(key)\nUses profile.get_config()\nor falls back to config.py", shape=ellipse];
+
+        // Flow connections
+        config_defaults -> get_config_method [label="Fallback (lowest)"];
+        default_config -> get_config_method [label="Third priority"];
+        initial_overrides -> get_config_method [label="Second priority"];
+        profile_overrides -> get_config_method [label="First priority"];
+        get_config_method -> merged_config;
+        merged_config -> ui_application;
+    }
+
+    /* ============================================
+       FLOW 2: PRACTICE MODE SELECTION FLOW
+       ============================================ */
+    subgraph cluster_mode_flow {
+        label="Flow 2: Practice Mode Selection Flow";
+        labelloc=t;
+        fontsize=16;
+        color=green;
+
+        profile_config [label="Profile Configuration\nPRACTICE_MODE setting\ncurriculum/sentences/code", shape=folder, fillcolor=lightgreen];
+
+        get_practice_text [label="main.py\n_get_practice_text()\nCheck practice mode\nand generate content", shape=ellipse];
+
+        check_prefetched [label="Check pre-fetched content\nIf available for current mode\nuse it immediately", shape=diamond, fillcolor=orange];
+
+        curriculum_branch [label="Curriculum Mode\ngenerate_lesson_text()", shape=ellipse];
+        sentences_branch [label="Sentences Mode\ngenerate_sentence()", shape=ellipse];
+        code_branch [label="Code Mode\ngenerate_code_snippet()", shape=ellipse];
+
+        // Curriculum sub-flow
+        lesson_index [label="profile.current_lesson_index\nCurrent lesson position", shape=note, fillcolor=lightyellow];
+        lesson_config [label="curriculum.py\nLESSONS[lesson_index]\nGet lesson definition", shape=note, fillcolor=lightyellow];
+        algorithm_dispatch [label="Dispatch to algorithm\nbased on lesson.algo", shape=diamond, fillcolor=orange];
+
+        // Sentences sub-flow
+        sentence_source [label="SENTENCE_SOURCE config\nlocal/file/api/cmd", shape=note, fillcolor=lightyellow];
+        source_dispatch [label="Dispatch to source handler", shape=diamond, fillcolor=orange];
+
+        // Code sub-flow
+        code_languages [label="CODE_LANGUAGES config\npython,rust,c,cpp", shape=note, fillcolor=lightyellow];
+        language_selection [label="Random language selection\nfrom configured list", shape=parallelogram];
+        code_source [label="CODE_SOURCE config\nlocal/file/cmd/ai", shape=note, fillcolor=lightyellow];
+
+        // Pre-fetching
+        start_prefetching [label="_start_prefetching()\nBackground generation\nfor next chunk", shape=ellipse];
+
+        // Flow connections
+        profile_config -> get_practice_text;
+        get_practice_text -> check_prefetched;
+        check_prefetched -> curriculum_branch [label="mode='curriculum'\n& no pre-fetch"];
+        check_prefetched -> sentences_branch [label="mode='sentences'\n& no pre-fetch"];
+        check_prefetched -> code_branch [label="mode='code'\n& no pre-fetch"];
+
+        curriculum_branch -> lesson_index;
+        lesson_index -> lesson_config;
+        lesson_config -> algorithm_dispatch;
+
+        sentences_branch -> sentence_source;
+        sentence_source -> source_dispatch;
+
+        code_branch -> code_languages;
+        code_languages -> language_selection;
+        language_selection -> code_source;
+
+        get_practice_text -> start_prefetching [label="After generation\nstart async pre-fetch"];
+    }
+
+    /* ============================================
+       FLOW 3: CONTENT GENERATION FLOW (MULTI-SOURCE)
+       ============================================ */
+    subgraph cluster_content_flow {
+        label="Flow 3: Content Generation Flow (Multi-Source)";
+        labelloc=t;
+        fontsize=16;
+        color=red;
+
+        // Sentence sources
+        sentence_local [label="Local Source\nUse SENTENCES list\nfrom curriculum.py", shape=ellipse];
+        sentence_file [label="File Source\nRead sentences.txt\nRandom line selection", shape=ellipse];
+        sentence_api [label="API Source\nFetch from quote API\nParse JSON response", shape=ellipse];
+        sentence_cmd [label="Command Source\nExecute shell command\nUse output as text", shape=ellipse];
+
+        // Code sources
+        code_local [label="Local Code\nRead snippets.py\nRandom function/class", shape=ellipse];
+        code_file [label="File Code\nRead external file\nLanguage-specific", shape=ellipse];
+        code_cmd [label="Command Code\nExecute command\ne.g., 'grep -r def .'", shape=ellipse];
+        code_ai [label="AI Generation\nOllama/OpenAI API\nGenerate code snippet", shape=ellipse];
+
+        // Common processing
+        normalize_text [label="text_normalizer.py\nnormalize_text()\nClean whitespace\nStandardize formatting", shape=ellipse];
+
+        fallback_chain [label="Fallback Chain\nIf source fails → next source\nAPI → file → local", shape=parallelogram];
+
+        target_keys_gen [label="Generate target_keys\n_sentence_to_physical_keys()\nFor validation", shape=ellipse];
+
+        final_output [label="Final Practice Text\nReady for typing\nwith target_keys stored", shape=note, fillcolor=lightyellow];
+
+        // Flow connections
+        sentence_local -> fallback_chain;
+        sentence_file -> fallback_chain;
+        sentence_api -> fallback_chain;
+        sentence_cmd -> fallback_chain;
+
+        code_local -> fallback_chain;
+        code_file -> fallback_chain;
+        code_cmd -> fallback_chain;
+        code_ai -> fallback_chain;
+
+        fallback_chain -> normalize_text;
+        normalize_text -> target_keys_gen;
+        target_keys_gen -> final_output;
+    }
+
+    /* ============================================
+       FLOW 4: ASYNC PRE-FETCHING FLOW
+       ============================================ */
+    subgraph cluster_prefetch_flow {
+        label="Flow 4: Asynchronous Pre-fetching Flow";
+        labelloc=t;
+        fontsize=16;
+        color=purple;
+
+        user_typing [label="User Typing\nCurrent chunk", shape=circle, fillcolor=pink];
+
+        start_prefetch [label="_start_prefetching()\nCalled after getting\ncurrent practice text", shape=ellipse];
+
+        background_task [label="Background Task\nasyncio.create_task()\nNon-blocking generation", shape=component, fillcolor=lightgreen];
+
+        generate_next [label="Generate next chunk\nSame mode/config\nas current session", shape=ellipse];
+
+        store_prefetched [label="Store in cache\n_prefetched_text\n_prefetched_keys\n_prefetched_language\n_prefetched_mode", shape=parallelogram];
+
+        cache_ready [label="Cache Ready\nNext chunk available\nfor immediate use", shape=note, fillcolor=lightyellow];
+
+        chunk_completion [label="Chunk Completed\nload_next_chunk() called", shape=circle, fillcolor=pink];
+
+        use_prefetched [label="Use pre-fetched content\nImmediate display\nNo generation delay", shape=ellipse];
+
+        restart_prefetch [label="Restart pre-fetching\nFor next-next chunk", shape=ellipse];
+
+        // Flow connections
+        user_typing -> start_prefetch [label="After text generation"];
+        start_prefetch -> background_task;
+        background_task -> generate_next;
+        generate_next -> store_prefetched;
+        store_prefetched -> cache_ready;
+        chunk_completion -> use_prefetched;
+        use_prefetched -> restart_prefetch;
+    }
+
+    /* ============================================
+       FLOW 5: TYPING VALIDATION WITH SHIFT MODES
+       ============================================ */
+    subgraph cluster_validation_flow {
+        label="Flow 5: Typing Validation with Shift Modes";
+        labelloc=t;
+        fontsize=16;
+        color=brown;
+
+        user_keypress [label="User Action\nTypes character", shape=circle, fillcolor=pink];
+
+        on_key_event [label="main.py\non_key(event)\nGet character\nfrom event", shape=ellipse];
+
+        char_to_physical [label="char_to_physical map\nBuilt at startup\nIncludes shifted chars", shape=note, fillcolor=lightyellow];
+
+        lookup_physical [label="physical_pressed =\nchar_to_physical.get(char)", shape=parallelogram];
+
+        target_keys [label="target_keys list\nExpected physical keys\nfrom content generation", shape=note, fillcolor=lightyellow];
+
+        get_expected [label="expected_physical =\ntarget_keys[typed_index]", shape=parallelogram];
+
+        shift_mode_check [label="Lesson shift_mode\n'off'/'mixed'/'always'", shape=note, fillcolor=lightyellow];
+
+        validation [label="Validation Logic\n1. physical_pressed == expected_physical\n2. Fallback: char == target_text[idx]", shape=diamond, fillcolor=orange];
+
+        correct_action [label="Correct\nAdd to typed_text\nUpdate display", shape=ellipse, fillcolor=lightgreen];
+
+        error_action [label="Error\ncurrent_chunk_errors += 1\nHard mode check", shape=ellipse, fillcolor=orange];
+
+        hard_mode_check [label="HARD_MODE config\nIf True: no progress\nIf False: allow continuation", shape=diamond, fillcolor=orange];
+
+        // Flow connections
+        user_keypress -> on_key_event;
+        on_key_event -> lookup_physical;
+        char_to_physical -> lookup_physical;
+        lookup_physical -> validation;
+        target_keys -> get_expected;
+        get_expected -> validation;
+        shift_mode_check -> validation [style=dashed];
+        validation -> correct_action [label="Match"];
+        validation -> error_action [label="Mismatch"];
+        error_action -> hard_mode_check;
+    }
+
+    /* ============================================
+       FLOW 6: SESSION EVALUATION WITH MODE AWARENESS
+       ============================================ */
+    subgraph cluster_evaluation_flow {
+        label="Flow 6: Session Evaluation with Mode Awareness";
+        labelloc=t;
+        fontsize=16;
+        color=darkgreen;
+
+        session_end [label="Session End\n5 minutes elapsed\nor manual end", shape=circle, fillcolor=pink];
+
+        end_drill [label="end_drill_session()\nStop timer\nFinalize stats", shape=ellipse];
+
+        evaluate_stats [label="evaluate_drill_and_show_stats()\nCalculate final WPM/accuracy", shape=ellipse];
+
+        cumulative_stats [label="Cumulative Stats\ntyped_chars, errors\nfrom session", shape=note, fillcolor=lightyellow];
+
+        calc_wpm [label="WPM Calculation\n(typed_chars/5)/(300/60)", shape=parallelogram];
+
+        calc_acc [label="Accuracy Calculation\n(chars-errors)/(chars+errors)*100", shape=parallelogram];
+
+        practice_mode [label="Current PRACTICE_MODE\ncurriculum/sentences/code", shape=note, fillcolor=lightyellow];
+
+        mode_check [label="Mode Check\nOnly curriculum mode\nhas lesson requirements", shape=diamond, fillcolor=orange];
+
+        lesson_reqs [label="Lesson Requirements\ntarget_acc, target_wpm\nfrom lesson config", shape=note, fillcolor=lightyellow];
+
+        requirement_check [label="Check Requirements\nacc >= target_acc AND\nwpm >= target_wpm", shape=diamond, fillcolor=orange];
+
+        update_progress [label="Update Progress\nIf passed: next lesson\nIf failed: repeat", shape=ellipse];
+
+        update_records [label="Update Records\nwpm_record if higher\ntotal_drills += 1", shape=ellipse];
+
+        save_profile [label="Save Profile\nPersist to JSON\nwith updates", shape=ellipse];
+
+        show_results [label="Show Results\nStatsScreen or\ninline notification", shape=component, fillcolor=lightgreen];
+
+        // Flow connections
+        session_end -> end_drill;
+        end_drill -> evaluate_stats;
+        evaluate_stats -> cumulative_stats;
+        cumulative_stats -> calc_wpm;
+        cumulative_stats -> calc_acc;
+        calc_wpm -> mode_check;
+        calc_acc -> mode_check;
+        practice_mode -> mode_check;
+        mode_check -> requirement_check [label="curriculum mode"];
+        mode_check -> update_records [label="sentences/code mode"];
+        lesson_reqs -> requirement_check;
+        requirement_check -> update_progress;
+        update_progress -> update_records;
+        update_records -> save_profile;
+        save_profile -> show_results;
+    }
+
+    /* ============================================
+       INTER-FLOW CONNECTIONS
+       ============================================ */
+
+    // Connect flows where they interact
+    edge [color=blue, style=dashed, constraint=false];
+
+    /* Flow 1 connects to all other flows */
+    merged_config -> get_practice_text [label="Provides config\nfor all operations"];
+
+    /* Flow 2 connects to Flow 3 */
+    curriculum_branch -> algorithm_dispatch [label="Algorithm selection"];
+    sentences_branch -> source_dispatch [label="Source selection"];
+    code_branch -> code_source [label="Code source selection"];
+
+    /* Flow 3 connects to Flow 5 */
+    final_output -> target_keys [label="Generated text\nand target_keys"];
+
+    /* Flow 4 connects to Flow 2 */
+    cache_ready -> check_prefetched [label="Available for\nnext chunk"];
+
+    /* Flow 5 connects to Flow 6 */
+    cumulative_stats -> calc_wpm [label="Session statistics"];
+    cumulative_stats -> calc_acc [label="Session statistics"];
+
+    /* Flow 2 connects to Flow 6 */
+    practice_mode -> mode_check [label="Determines evaluation\nlogic"];
+
+    /* ============================================
+       KEY LEGEND
+       ============================================ */
+    subgraph cluster_legend {
+        label="Node Type Legend";
+        labelloc=b;
+        fontsize=12;
+        color=gray;
+
+        node_legend_config [label="Configuration\nConstant values", shape=note, fillcolor=lightyellow];
+        node_legend_code [label="Code Execution\nFunctions/methods", shape=ellipse, fillcolor=lightblue];
+        node_legend_data [label="Data Storage\nVariables/structures", shape=parallelogram, fillcolor=white];
+        node_legend_decision [label="Decision Point\nLogic/condition", shape=diamond, fillcolor=orange];
+        node_legend_ui [label="UI Component\nScreen/widget", shape=component, fillcolor=lightgreen];
+        node_legend_user [label="User Action\nInput/trigger", shape=circle, fillcolor=pink];
+        node_legend_file [label="File/JSON\nPersistent storage", shape=note, fillcolor=lightyellow];
+        node_legend_profile [label="Profile Object\nUser data", shape=folder, fillcolor=lightgreen];
+        node_legend_cache [label="Cache/Pre-fetch\nTemporary storage", shape=note, fillcolor=lightyellow];
+
+        // Layout for legend
+        { rank=same; node_legend_config; node_legend_code; }
+        { rank=same; node_legend_data; node_legend_decision; }
+        { rank=same; node_legend_ui; node_legend_user; }
+        { rank=same; node_legend_file; node_legend_profile; node_legend_cache; }
+    }
+
+    /* ============================================
+       GLOBAL CONSTANTS REFERENCED
+       ============================================ */
+    subgraph cluster_constants {
+        label="Global Constants (Enhanced)";
+        labelloc=b;
+        fontsize=12;
+        color=darkgreen;
+
+        const_drill_duration [label="DRILL_DURATION = 300\n(5 minutes)", shape=note, fillcolor=lightyellow];
+        const_hard_mode [label="HARD_MODE = True", shape=note, fillcolor=lightyellow];
+        const_shuffle_after [label="SHUFFLE_AFTER = 5\nShuffle after chunks", shape=note, fillcolor=lightyellow];
+        const_practice_modes [label="PRACTICE_MODE\ncurriculum, sentences, code", shape=note, fillcolor=lightyellow];
+        const_sentence_sources [label="SENTENCE_SOURCE\nlocal, file, api, cmd", shape=note, fillcolor=lightyellow];
+        const_code_sources [label="CODE_SOURCE\nlocal, file, cmd, ai", shape=note, fillcolor=lightyellow];
+        const_code_languages [label="CODE_LANGUAGES\npython,rust,c,cpp", shape=note, fillcolor=lightyellow];
+
+        // Connect to flows that use them
+        edge [color=darkgreen, style=dotted];
+        const_drill_duration -> end_drill;
+        const_hard_mode -> hard_mode_check;
+        const_shuffle_after -> algorithm_dispatch [label="shuffle parameter"];
+        const_practice_modes -> profile_config;
+        const_sentence_sources -> sentence_source;
+        const_code_sources -> code_source;
+        const_code_languages -> code_languages;
+    }
+}

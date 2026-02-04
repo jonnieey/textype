@@ -1,0 +1,374 @@
+digraph TextypeFunctionFlow {
+    rankdir=TB;
+    node [shape=box, style=filled, fillcolor=lightblue];
+    edge [fontsize=10];
+
+    /* ============================================
+       MAIN APPLICATION FLOW
+       ============================================ */
+
+    // Startup
+    app_start [label="TypingTutor()\n__init__()", shape=ellipse, fillcolor=orange];
+    build_char_map [label="Build char_to_physical\nFor all PhysicalKey:\n  char = resolver.resolve(key.value)\n  char_to_physical[char] = key"];
+
+    // Profile selection
+    action_switch_profile [label="action_switch_profile()\n(F4 key)", shape=ellipse, fillcolor=orange];
+    profile_screen [label="ProfileSelectScreen()\nUser selects/creates profile"];
+    set_profile [label="set_profile(profile)\nself.profile = profile\napply_profile_config()\nstart_new_session()"];
+
+    // Session start
+    start_new_session [label="start_new_session()\nReset all session stats\nsession_active = True", shape=ellipse, fillcolor=orange];
+    get_practice_mode [label="Get practice mode from profile\ncurriculum/sentences/code"];
+    check_prefetched [label="Check for pre-fetched content\nIf available, use it and start\nbackground pre-fetching"];
+
+    // Practice text generation
+    get_practice_text [label="_get_practice_text()", shape=ellipse, fillcolor=orange];
+    curriculum_mode [label="Curriculum Mode\ngenerate_lesson_text()"];
+    sentences_mode [label="Sentences Mode\ngenerate_sentence()"];
+    code_mode [label="Code Mode\ngenerate_code_snippet()\nSelect language from config"];
+
+    // Lesson generation (curriculum mode)
+    generate_lesson_text [label="generate_lesson_text()", shape=ellipse, fillcolor=orange];
+    get_lesson_config [label="lesson = LESSONS[profile.current_lesson_index]\nalgo_type = lesson['algo']\nrow_key = lesson['row']\nshift_mode = lesson['shift_mode']"];
+    get_row_layout [label="row_data = LAYOUT[row_key]\nleft + right keys"];
+    dispatch_algorithm [label="dispatch[algo_type]()\nCalls appropriate algorithm"];
+    store_target_keys [label="self.target_keys = physical_keys"];
+    render_text [label="_render_keys_to_text()\nConvert with shift mode"];
+
+    // Typing loop
+    on_key [label="on_key(event)\nCalled for each keypress", shape=ellipse, fillcolor=orange];
+    process_char [label="if event.key == 'space': char = ' '\nelif event.is_printable: char = event.character"];
+    map_to_physical [label="physical_pressed = char_to_physical.get(char)"];
+    get_expected [label="idx = len(typed_text)\nexpected_physical = target_keys[idx]"];
+    validate [label="if physical_pressed == expected_physical:\n  is_correct = True\nelif char == target_text[idx]:\n  is_correct = True", shape=diamond, fillcolor=lightgreen];
+    handle_correct [label="if is_correct:\n  typed_text += char"];
+    handle_error [label="else:\n  current_chunk_errors += 1\n  if not HARD_MODE: typed_text += char"];
+    refresh_display_call [label="refresh_display()"];
+    check_completion [label="check_chunk_completion()\nif len(typed_text) == len(target_text):\n  if session_active: load_next_chunk()"];
+
+    // Display updates
+    refresh_display [label="refresh_display()\nUpdate UI every 0.5s", shape=ellipse, fillcolor=orange];
+    calc_stats [label="Calculate:\n- Time remaining\n- WPM = (total_chars/5)/(elapsed/60)\n- Accuracy = ((chars-errors)/(chars+errors))*100"];
+    update_ui [label="Update stats bar\nHighlight current key/finger\nShow shift if needed\nShow mode/language"];
+
+    // Timer
+    update_timer [label="update_timer()\nCalled every 0.5s", shape=ellipse, fillcolor=orange];
+    check_time [label="if elapsed >= DRILL_DURATION:\n  end_drill_session()"];
+
+    // Session end
+    end_drill_session [label="end_drill_session()\nsession_active = False", shape=ellipse, fillcolor=orange];
+    evaluate_stats [label="evaluate_drill_and_show_stats()"];
+    calc_final [label="Calculate final WPM/accuracy\nwpm = (cumulative_typed_chars/5)/(DRILL_DURATION/60)"];
+    check_requirements [label="Only in curriculum mode:\npassed = acc >= target_acc AND wpm >= target_wpm", shape=diamond, fillcolor=lightgreen];
+    update_progress [label="if passed:\n  profile.current_lesson_index += 1\nelse:\n  notify('Requirements not met')"];
+    save_profile [label="if wpm > wpm_record: update\nprofile.total_drills += 1\nprofile.save()"];
+    show_results [label="if show_stats_pref:\n  push_screen(StatsScreen())\nelse:\n  show inline results"];
+
+    // Chunk loading with pre-fetching
+    load_next_chunk [label="load_next_chunk()", shape=ellipse, fillcolor=orange];
+    update_cumulative [label="cumulative_typed_chars += len(typed_text)\ncumulative_errors += current_chunk_errors\nchunks_completed += 1"];
+    use_prefetched [label="Use pre-fetched content if available\nOtherwise generate new text"];
+    start_prefetching [label="_start_prefetching()\nBackground task for next chunk"];
+
+    // Quit
+    action_quit [label="action_quit()\n(Escape key)", shape=ellipse, fillcolor=orange];
+    save_config [label="Save UI config to profile\nprofile.config_overrides.update()"];
+    profile_save_exit [label="profile.save()\nself.exit()"];
+
+    /* ============================================
+       ALGORITHM FUNCTIONS (from algorithms_generator.py)
+       ============================================ */
+    subgraph cluster_algorithms {
+        label="Generator Algorithms";
+        labelloc=t;
+        fontsize=12;
+        color=green;
+
+        node [fillcolor=lightgreen];
+
+        single_key_repeat [label="single_key_repeat(keys, reps=4)\nFor each key: repeat reps times\nAdd space between keys"];
+        same_hand_adjacent [label="same_hand_adjacent(row_keys, reps=3)\nCreate adjacent pairs on same hand\n(A,S), (S,D), (D,F), (J,K), ..."];
+        alternating_pairs [label="alternating_pairs(row_keys, reps=4)\nCreate left-right pairs\n(A,J), (S,K), (D,L), (F,;)"];
+        mirror_pairs [label="mirror_pairs(row_keys, reps=4)\nCreate mirror pairs\n(A,;), (S,L), (D,K), (F,J)"];
+        rolls [label="rolls(row_keys, reps=2)\nInward/outward flows\n[A,S,D,F], [F,D,S,A], ..."];
+        pseudo_words [label="pseudo_words(row_keys, count=10)\nRandom length 'words'\nfrom practice keys"];
+    }
+
+    /* ============================================
+       SENTENCE GENERATION (from sentence_generator.py)
+       ============================================ */
+    subgraph cluster_sentences {
+        label="Sentence Generation";
+        labelloc=t;
+        fontsize=12;
+        color=blue;
+
+        node [fillcolor=lightblue];
+
+        generate_sentence_func [label="generate_sentence(config)\nMulti-source generation"];
+        source_selection [label="Source selection:\n- local (default list)\n- file (external file)\n- api (quote API)\n- cmd (shell command)", shape=diamond];
+        local_source [label="Use SENTENCES list\nfrom curriculum.py"];
+        file_source [label="Read from sentences.txt\nRandom line selection"];
+        api_source [label="Fetch from quote API\nParse JSON response"];
+        cmd_source [label="Execute shell command\nUse output as sentence"];
+        normalize_text [label="normalize_text()\nClean whitespace,\nstandardize formatting"];
+    }
+
+    /* ============================================
+       CODE GENERATION (from code_generator.py)
+       ============================================ */
+    subgraph cluster_code {
+        label="Code Generation";
+        labelloc=t;
+        fontsize=12;
+        color=purple;
+
+        node [fillcolor=lavender];
+
+        generate_code_snippet [label="generate_code_snippet(language, config)\nMulti-language support"];
+        language_selection [label="Language: python, rust, c, cpp\nFrom profile config"];
+        code_source_selection [label="Source selection:\n- local (snippets.py)\n- file (external file)\n- cmd (shell command)\n- ai (AI generation)", shape=diamond];
+        local_code [label="Read from snippets.py\nRandom function/class"];
+        file_code [label="Read from external file\nLanguage-specific parsing"];
+        cmd_code [label="Execute command\ne.g., 'grep -r def .'"];
+        ai_generation [label="AI generation\nOllama or OpenAI API"];
+        code_normalize [label="normalize_text()\nStandardize indentation,\nclean formatting"];
+    }
+
+    /* ============================================
+       PROFILE FUNCTIONS (from models.py)
+       ============================================ */
+    subgraph cluster_profile {
+        label="Profile Management";
+        labelloc=t;
+        fontsize=12;
+        color=brown;
+
+        node [fillcolor=tan];
+
+        profile_save [label="profile.save()\nCreate directory if needed\nWrite JSON with indent"];
+        profile_load [label="UserProfile.load(name)\nRead JSON file\nReturn UserProfile(**data)"];
+        list_profiles [label="UserProfile.list_profiles()\nScan profiles directory\nReturn profile names"];
+        get_config [label="profile.get_config(key)\nCheck overrides → defaults\nHierarchical resolution"];
+        config_property [label="profile.config property\nMerged defaults + overrides"];
+    }
+
+    /* ============================================
+       XKB FUNCTIONS (from xkb_resolver.py)
+       ============================================ */
+    subgraph cluster_xkb {
+        label="XKB Resolution";
+        labelloc=t;
+        fontsize=12;
+        color=darkgreen;
+
+        node [fillcolor=lightgreen];
+
+        xkb_init [label="XKBResolver.__init__()\nctx = xkb.Context()\nkeymap = ctx.keymap_new_from_names()\nstate = keymap.state_new()"];
+        update_modifiers [label="update_modifiers(shift, altgr)\nSet modifier state\nfor character resolution"];
+        resolve [label="resolve(evdev_code)\nxkb_code = evdev_code + 8\nsym = state.key_get_one_sym(xkb_code)\nreturn xkb.keysym_to_string(sym)"];
+        get_key_character [label="_get_key_character(key, shift)\nCached character lookup\nwith shift state"];
+    }
+
+    /* ============================================
+       WIDGET FUNCTIONS (from widgets.py)
+       ============================================ */
+    subgraph cluster_widgets {
+        label="UI Widgets";
+        labelloc=t;
+        fontsize=12;
+        color=darkblue;
+
+        node [fillcolor=lightblue];
+
+        finger_column [label="FingerColumn(fid, height, width)\nVisual finger representation"];
+        stats_screen [label="StatsScreen(wpm, accuracy, errors)\nModal results display"];
+        profile_select [label="ProfileSelectScreen()\nProfile selection/creation"];
+        on_input_submitted [label="on_input_submitted(event)\nCreate/load profile\nprofile.save()\ndismiss(profile)"];
+        on_list_selected [label="on_list_view_selected(event)\nLoad selected profile\ndismiss(profile)"];
+        profile_info [label="ProfileInfoScreen()\nShow profile details\nand configuration"];
+    }
+
+    /* ============================================
+       MAIN FLOW CONNECTIONS
+       ============================================ */
+
+    // Startup flow
+    app_start -> build_char_map;
+    app_start -> action_switch_profile [label="on_mount()"];
+
+    // Profile flow
+    action_switch_profile -> profile_screen;
+    profile_screen -> set_profile [label="User selects"];
+    set_profile -> start_new_session;
+
+    // Session start flow
+    start_new_session -> get_practice_mode;
+    get_practice_mode -> check_prefetched;
+    check_prefetched -> get_practice_text [label="No pre-fetched"];
+
+    // Practice text generation flow
+    get_practice_text -> curriculum_mode [label="mode='curriculum'"];
+    get_practice_text -> sentences_mode [label="mode='sentences'"];
+    get_practice_text -> code_mode [label="mode='code'"];
+
+    // Curriculum mode flow
+    curriculum_mode -> generate_lesson_text;
+    generate_lesson_text -> get_lesson_config;
+    get_lesson_config -> get_row_layout;
+    get_row_layout -> dispatch_algorithm;
+    dispatch_algorithm -> single_key_repeat [label="algo='repeat'", style=dashed];
+    dispatch_algorithm -> same_hand_adjacent [label="algo='adjacent'", style=dashed];
+    dispatch_algorithm -> alternating_pairs [label="algo='alternating'", style=dashed];
+    dispatch_algorithm -> mirror_pairs [label="algo='mirror'", style=dashed];
+    dispatch_algorithm -> rolls [label="algo='rolls'", style=dashed];
+    dispatch_algorithm -> pseudo_words [label="algo='pseudo'", style=dashed];
+    dispatch_algorithm -> store_target_keys;
+    store_target_keys -> render_text;
+    render_text -> get_key_character [label="For each key", style=dashed];
+
+    // Sentences mode flow
+    sentences_mode -> generate_sentence_func;
+    generate_sentence_func -> source_selection;
+    source_selection -> local_source [label="source='local'"];
+    source_selection -> file_source [label="source='file'"];
+    source_selection -> api_source [label="source='api'"];
+    source_selection -> cmd_source [label="source='cmd'"];
+    local_source -> normalize_text;
+    file_source -> normalize_text;
+    api_source -> normalize_text;
+    cmd_source -> normalize_text;
+
+    // Code mode flow
+    code_mode -> generate_code_snippet;
+    generate_code_snippet -> language_selection;
+    language_selection -> code_source_selection;
+    code_source_selection -> local_code [label="source='local'"];
+    code_source_selection -> file_code [label="source='file'"];
+    code_source_selection -> cmd_code [label="source='cmd'"];
+    code_source_selection -> ai_generation [label="source='ai'"];
+    local_code -> code_normalize;
+    file_code -> code_normalize;
+    cmd_code -> code_normalize;
+    ai_generation -> code_normalize;
+
+    // Typing validation flow
+    on_key -> process_char;
+    process_char -> map_to_physical;
+    map_to_physical -> get_expected;
+    get_expected -> validate;
+    validate -> handle_correct [label="Correct"];
+    validate -> handle_error [label="Incorrect"];
+    handle_correct -> refresh_display_call;
+    handle_error -> refresh_display_call;
+    refresh_display_call -> refresh_display;
+    refresh_display_call -> check_completion;
+    check_completion -> load_next_chunk [label="If complete and active"];
+
+    // Display and timer flow
+    refresh_display -> calc_stats;
+    calc_stats -> update_ui;
+    update_timer -> check_time;
+    check_time -> end_drill_session [label="Time's up"];
+
+    // Session end flow
+    end_drill_session -> evaluate_stats;
+    evaluate_stats -> calc_final;
+    calc_final -> check_requirements;
+    check_requirements -> update_progress [label="Curriculum mode only"];
+    update_progress -> save_profile;
+    save_profile -> show_results;
+    save_profile -> profile_save [style=dashed];
+
+    // Chunk loading flow
+    load_next_chunk -> update_cumulative;
+    update_cumulative -> use_prefetched;
+    use_prefetched -> start_prefetching [label="Start async pre-fetch"];
+    use_prefetched -> get_practice_text [label="No pre-fetched"];
+
+    // Quit flow
+    action_quit -> save_config;
+    save_config -> profile_save_exit;
+    profile_save_exit -> profile_save [style=dashed];
+
+    /* ============================================
+       DATA FLOW HIGHLIGHTS
+       ============================================ */
+
+    // Key data transformations
+    subgraph cluster_data_flow {
+        label="Key Data Transformations";
+        labelloc=b;
+        fontsize=12;
+        color=darkgreen;
+
+        node [fillcolor=lightyellow, shape=note];
+
+        data_config [label="config.LESSONS\nLesson definitions"];
+        data_profile [label="UserProfile\nProgress + config"];
+        data_layout [label="keyboard.LAYOUT\nPhysical key groups"];
+        data_physical [label="PhysicalKey enum\nEvdev scancodes"];
+        data_char_map [label="char_to_physical\nCharacter → key mapping"];
+        data_target [label="target_keys\nExpected physical keys"];
+        data_text [label="target_text\nRendered characters"];
+        data_stats [label="Session stats\nWPM, accuracy, errors"];
+        data_json [label="profile.json\nPersisted progress"];
+        data_prefetched [label="Pre-fetched content\nText + keys + language"];
+
+        // Show data flow
+        edge [color=darkgreen, style=bold];
+
+        data_config -> get_lesson_config;
+        data_profile -> get_practice_mode;
+        data_profile -> get_config;
+        data_layout -> get_row_layout;
+        data_physical -> build_char_map;
+        build_char_map -> data_char_map;
+        dispatch_algorithm -> data_target;
+        render_text -> data_text;
+        normalize_text -> data_text;
+        code_normalize -> data_text;
+        calc_stats -> data_stats;
+        profile_save -> data_json;
+        get_practice_text -> data_prefetched [label="Background"];
+        data_prefetched -> check_prefetched [label="Consume"];
+    }
+
+    /* ============================================
+       CONSTANT REFERENCES
+       ============================================ */
+
+    subgraph cluster_constants {
+        label="Configuration Constants";
+        labelloc=b;
+        fontsize=10;
+        color=gray;
+
+        node [fillcolor=white, shape=note, fontsize=9];
+
+        const_duration [label="DRILL_DURATION = 300"];
+        const_hardmode [label="HARD_MODE = True"];
+        const_shuffle [label="SHUFFLE_AFTER = 5"];
+        const_target_acc [label="target_acc = 95"];
+        const_target_wpm [label="target_wpm = 10"];
+        const_show_stats [label="SHOW_STATS_ON_END = False"];
+        const_practice_modes [label="PRACTICE_MODE options:\ncurriculum, sentences, code"];
+        const_code_langs [label="CODE_LANGUAGES\npython,rust,c,cpp"];
+        const_sentence_src [label="SENTENCE_SOURCE\nlocal, file, api, cmd"];
+        const_code_src [label="CODE_SOURCE\nlocal, file, cmd, ai"];
+
+        // Connect to functions that use them
+        edge [color=gray, style=dotted];
+
+        const_duration -> check_time;
+        const_hardmode -> handle_error;
+        const_shuffle -> dispatch_algorithm [label="shuffle param"];
+        const_target_acc -> check_requirements;
+        const_target_wpm -> check_requirements;
+        const_show_stats -> show_results;
+        const_practice_modes -> get_practice_mode;
+        const_code_langs -> language_selection;
+        const_sentence_src -> source_selection;
+        const_code_src -> code_source_selection;
+    }
+}
