@@ -28,6 +28,8 @@ dependencies = [
   "textual==7.4.0",
   "pyyaml==6.0.3",
   "platformdirs==4.5.1",
+  "xkbcommon==1.5.1",
+  "requests==2.32.5",
 ]
 
 [tool.hatch.envs.dev]
@@ -40,6 +42,10 @@ dependencies = [
 Documentation = "https://github.com/jonnieey/textype#readme"
 Issues = "https://github.com/jonnieey/textype/issues"
 Source = "https://github.com/jonnieey/textype"
+
+[project.scripts]
+
+textype = "textype.main:run"
 
 [tool.hatch.version]
 path = "src/textype/__about__.py"

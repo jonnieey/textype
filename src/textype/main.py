@@ -1327,5 +1327,10 @@ class TypingTutor(App):
         return char
 
 
+def run():
+    app = TypingTutor()
+    app.run()
+
+
 if __name__ == "__main__":
-    TypingTutor().run()
+    run()
