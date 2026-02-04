@@ -3,6 +3,7 @@
 This module contains the main TypingTutor application class that orchestrates
 the typing practice sessions, UI interactions, and user progress tracking.
 """
+import asyncio
 import time
 import random
 from typing import Optional, Dict, List
@@ -81,6 +82,13 @@ class TypingTutor(App):
         self.last_drill_passed: bool = False
         self.previous_lesson_index: int = 0
         self.current_code_language: Optional[str] = None
+
+        # Async pre-fetching state
+        self._prefetch_task: Optional[asyncio.Task] = None
+        self._prefetched_text: Optional[str] = None
+        self._prefetched_keys: Optional[List[PhysicalKey]] = None
+        self._prefetched_language: Optional[str] = None
+        self._prefetched_mode: Optional[str] = None  # "curriculum", "sentences", "code"
 
         # Build Reverse Map: Character -> Physical Key (for validation)
         # Note: This is an approximation. A robust solution might iterate all keycodes.
@@ -242,6 +250,9 @@ class TypingTutor(App):
 
         Keeps session active and timer running, but resets text and statistics.
         """
+        # Cancel any pending pre-fetch for the old mode
+        self._cancel_prefetch()
+
         # Reset typing state
         self.cumulative_typed_chars = 0
         self.cumulative_errors = 0
@@ -263,6 +274,8 @@ class TypingTutor(App):
 
         def set_profile(profile: UserProfile):
             if profile:
+                # Cancel any existing pre-fetch from previous profile
+                self._cancel_prefetch()
                 self.profile = profile
                 self.apply_profile_config()
                 self.notify(f"Welcome, {profile.name}!")
@@ -324,6 +337,9 @@ class TypingTutor(App):
             # 3. Persist to disk
             self.profile.save()
             self.notify(f"Config saved for {self.profile.name}")
+
+        # Cancel any pending pre-fetch tasks
+        self._cancel_prefetch()
 
         # 4. Standard exit
         self.exit()
@@ -561,15 +577,49 @@ class TypingTutor(App):
         # Reset current code language (will be set if in code mode)
         self.current_code_language = None
 
+        # Check if we have pre-fetched content for the current mode
+        if self.profile:
+            practice_mode = self.profile.config_overrides.get(
+                "PRACTICE_MODE", "curriculum"
+            )
+            if (
+                self._prefetched_text is not None
+                and self._prefetched_mode == practice_mode
+            ):
+                # Use pre-fetched content
+                text = self._prefetched_text
+                keys = self._prefetched_keys
+                language = self._prefetched_language
+
+                # Clear pre-fetched data (we're consuming it)
+                self._prefetched_text = None
+                self._prefetched_keys = None
+                self._prefetched_language = None
+                self._prefetched_mode = None
+
+                # Set target keys and language
+                self.target_keys = keys
+                if language:
+                    self.current_code_language = language
+
+                # Start pre-fetching the next chunk in background
+                self._start_prefetching()
+
+                return text
+
+        # No pre-fetched content available, generate synchronously
         if not self.profile:
             sentence = algos.generate_sentence()
             self.target_keys = self._sentence_to_physical_keys(sentence)
+            # Start pre-fetching for future (once profile is selected)
             return sentence
 
         practice_mode = self.profile.config_overrides.get("PRACTICE_MODE", "curriculum")
         if practice_mode == "sentences":
             sentence = algos.generate_sentence()
             self.target_keys = self._sentence_to_physical_keys(sentence)
+            # Start pre-fetching next chunk
+            self._start_prefetching()
             return sentence
         elif practice_mode == "code":
             # Get configured languages, fallback to all supported
@@ -586,10 +636,86 @@ class TypingTutor(App):
             snippet = code_generator.generate_code_snippet(language)
             self.target_keys = self._sentence_to_physical_keys(snippet)
             self.current_code_language = language
+            # Start pre-fetching next chunk
+            self._start_prefetching()
             return snippet
         else:
             # generate_lesson_text() already sets self.target_keys
+            # Curriculum mode doesn't need pre-fetching (fast generation)
             return self.generate_lesson_text()
+
+    def _cancel_prefetch(self) -> None:
+        """Cancel any pending pre-fetch task and clear pre-fetched data."""
+        if self._prefetch_task and not self._prefetch_task.done():
+            self._prefetch_task.cancel()
+            self._prefetch_task = None
+        self._prefetched_text = None
+        self._prefetched_keys = None
+        self._prefetched_language = None
+        self._prefetched_mode = None
+
+    async def _prefetch_next_chunk(self) -> None:
+        """Asynchronously pre-fetch the next chunk of practice text based on current mode."""
+        # Determine current practice mode and parameters
+        if not self.profile:
+            # No profile yet, cannot pre-fetch
+            return
+
+        practice_mode = self.profile.config_overrides.get("PRACTICE_MODE", "curriculum")
+
+        # Cancel any existing pre-fetch for a different mode
+        if self._prefetched_mode and self._prefetched_mode != practice_mode:
+            self._cancel_prefetch()
+
+        # If we already have pre-fetched content for this mode, do nothing
+        if self._prefetched_text is not None and self._prefetched_mode == practice_mode:
+            return
+
+        try:
+            if practice_mode == "sentences":
+                text = await algos.generate_sentence_async()
+                keys = self._sentence_to_physical_keys(text)
+                language = None
+            elif practice_mode == "code":
+                lang_config = self.profile.config_overrides.get(
+                    "CODE_LANGUAGES", "python,rust,c,cpp"
+                )
+                allowed_languages = self._parse_language_config(lang_config)
+                if not allowed_languages:
+                    allowed_languages = ["python", "rust", "c", "cpp"]
+                language = random.choice(allowed_languages)
+                text = await code_generator.generate_code_snippet_async(language)
+                keys = self._sentence_to_physical_keys(text)
+            else:
+                # Curriculum mode - synchronous generation (fast, no async needed)
+                # We'll still pre-fetch the next lesson text
+                # Since curriculum generation is fast, we can generate synchronously
+                # but we need to run in thread to avoid blocking the UI
+                # For now, skip pre-fetching for curriculum mode
+                return
+
+            # Store pre-fetched content
+            self._prefetched_text = text
+            self._prefetched_keys = keys
+            self._prefetched_language = language
+            self._prefetched_mode = practice_mode
+        except Exception as e:
+            # Log error and continue without pre-fetching
+            import sys
+
+            sys.stderr.write(f"Pre-fetch error: {e}\n")
+            self._cancel_prefetch()
+
+    def _start_prefetching(self) -> None:
+        """Start pre-fetching the next chunk in the background."""
+        if not self.profile:
+            return
+
+        # Cancel any existing pre-fetch
+        self._cancel_prefetch()
+
+        # Start new pre-fetch task
+        self._prefetch_task = asyncio.create_task(self._prefetch_next_chunk())
 
     def _sentence_to_physical_keys(self, sentence: str) -> List[PhysicalKey]:
         """Convert a sentence string to list of physical keys.

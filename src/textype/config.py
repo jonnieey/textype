@@ -465,3 +465,17 @@ MAX_FINGER_HEIGHT: int = max(
     dimensions.height for dimensions in FINGER_HEIGHTS.values()
 )
 """Maximum height among all finger columns for alignment purposes."""
+
+# Practice source configurations
+# Sources: "local", "file", "api", "cmd", "ai"
+SENTENCE_SOURCE: str = "api"
+CODE_SOURCE: str = "local"
+
+# Local File Paths
+SENTENCES_FILE: str = "sentences.txt"
+CODE_FILE: str = "snippets.py"
+
+# Dynamic Commands and APIs
+CODE_COMMAND: str = ""  # e.g., "grep -r 'def ' . | shuf -n 1"
+QUOTE_API_URL: str = "https://api.quotify.top/random"
+AI_ENDPOINT: str = "http://localhost:11434/api/generate"  # Ollama example

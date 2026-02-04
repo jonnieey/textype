@@ -3,7 +3,19 @@
 This module contains algorithms that generate code snippets for different
 programming languages (Python, Rust, C, C++) for typing practice.
 """
+import asyncio
 import random
+import subprocess
+from pathlib import Path
+from text_normalizer import normalize_text
+
+# Optional dependencies
+try:
+    import requests
+
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
 
 
 def generate_code_snippet(language: str = "python") -> str:
@@ -18,17 +30,61 @@ def generate_code_snippet(language: str = "python") -> str:
     Raises:
         ValueError: If language is not supported
     """
-    language = language.lower()
-    if language == "python":
-        return _generate_python_snippet()
-    elif language == "rust":
-        return _generate_rust_snippet()
-    elif language == "c":
-        return _generate_c_snippet()
-    elif language == "cpp":
-        return _generate_cpp_snippet()
-    else:
-        raise ValueError(f"Unsupported language: {language}")
+    import config
+
+    source = config.CODE_SOURCE
+
+    # 1. Local Command/Parser (Offline Dynamic)
+    if source == "cmd" and config.CODE_COMMAND:
+        try:
+            result = subprocess.check_output(config.CODE_COMMAND, shell=True, timeout=2)
+            return normalize_text(result.decode().strip())
+        except Exception:
+            pass
+
+    # 2. AI Generation (Online/Local LLM)
+    if source == "ai" and HAS_REQUESTS:
+        try:
+            payload = {
+                "model": "codellama",
+                "prompt": f"Provide a short {language} code snippet (5-10 lines). Code only.",
+                "stream": False,
+            }
+            response = requests.post(config.AI_ENDPOINT, json=payload, timeout=5)
+            if response.status_code == 200:
+                return normalize_text(response.json().get("response", "").strip())
+        except Exception:
+            pass
+
+    # 3. Local File
+    if source == "file" and Path(config.CODE_FILE).exists():
+        with open(config.CODE_FILE, "r") as f:
+            # Treat file as a list of snippets separated by double newlines or similar
+            content = f.read().split("\n\n")
+            return normalize_text(random.choice(content).strip())
+
+    # 4. Fallback: Existing static snippets
+    snippets = {
+        "python": _generate_python_snippet(),
+        "rust": _generate_rust_snippet(),
+        "c": _generate_c_snippet(),
+        "cpp": _generate_cpp_snippet(),
+    }
+    # Default to python snippet if language not supported
+    return normalize_text(snippets.get(language, snippets["python"]))
+
+
+async def generate_code_snippet_async(language: str = "python") -> str:
+    """Generate a random code snippet asynchronously.
+
+    Args:
+        language: Programming language for the snippet (python, rust, c, cpp)
+
+    Returns:
+        Code snippet as a string
+    """
+    # Run the synchronous function in a thread to avoid blocking
+    return await asyncio.to_thread(generate_code_snippet, language)
 
 
 def _generate_python_snippet() -> str:
