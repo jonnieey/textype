@@ -119,10 +119,6 @@
     color: #c0caf5;
 }
 
-#next-button {
-    width: 100%;
-    margin-top: 1;
-}
 #profile-modal {
     width: 50;
     height: auto;
