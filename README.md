@@ -2,6 +2,10 @@
 
 A modern, feature-rich typing tutor for the terminal with multiple practice modes, real-time feedback, and progress tracking.
 
+## GIF Preview
+
+![](https://github.com/jonnieey/textype/blob/main/docs/textype.gif)
+
 ## Features
 
 ### 🎯 Multiple Practice Modes
