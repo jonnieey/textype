@@ -81,14 +81,6 @@ for idx, row in enumerate(rows, start=1):
                 target_wpm=10,
                 shift_mode="off",
             ),
-            LessonDict(
-                name=f"{idx}.7: Mixed Case",
-                algo="pseudo",
-                row=row,
-                target_acc=90,
-                target_wpm=10,
-                shift_mode="mixed",
-            ),
         ]
     )
 
