@@ -549,11 +549,19 @@ class TypingTutor(App):
         Returns:
             Status text string
         """
+        practice_mode = self.profile.config_overrides.get("PRACTICE_MODE", "curriculum")
+
+        if practice_mode == "curriculum":
+            lesson = LESSONS[self.profile.current_lesson_index]
+            # Curriculum mode: evaluate lesson requirements
+            target_acc = lesson["target_acc"]
+            target_wpm = lesson["target_wpm"]
+
         if not self.profile:
             return f"TIME: {timer_str} | WPM: {wpm} | ACC: {acc}% | [bold red]AWAITING PROFILE...[/]"
 
         mode_display = self._get_mode_display()
-        return f"MODE: {mode_display} | TIME: {timer_str} | WPM: {wpm} | ACC: {acc}%"
+        return f"MODE: {mode_display} | TIME: {timer_str} | WPM: {wpm} | ACC: {acc}% | TGT ACC: {target_acc} | TGT WPM: {target_wpm}"
 
     def _get_mode_display(self) -> str:
         """Get the display string for the current practice mode.
@@ -1088,15 +1096,24 @@ class TypingTutor(App):
             # Curriculum mode: evaluate lesson requirements
             self.previous_lesson_index = self.profile.current_lesson_index
             lesson = LESSONS[self.profile.current_lesson_index]
-            passed = acc >= lesson["target_acc"] and wpm >= lesson["target_wpm"]
+            acc_passed = acc >= lesson["target_acc"]
+            wpm_passed = wpm >= lesson["target_wpm"]
+            passed = all([acc_passed, wpm_passed])
             self.last_drill_passed = passed
 
             if passed:
                 self.notify(f"LEVEL UP: {lesson['name']} Cleared!")
             else:
-                self.notify(
-                    "Requirements not met. Lesson will repeat.", severity="warning"
-                )
+                if not acc_passed:
+                    self.notify(
+                        f"Accuracy < {lesson['target_acc']} . Lesson will repeat.",
+                        severity="warning",
+                    )
+                if not wpm_passed:
+                    self.notify(
+                        f"Speed < {lesson['target_wpm']}. Lesson will repeat.",
+                        severity="warning",
+                    )
             return passed
         else:
             # Sentence or code practice mode: always "passed" for UI purposes
