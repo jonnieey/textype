@@ -549,19 +549,32 @@ class TypingTutor(App):
         Returns:
             Status text string
         """
-        practice_mode = self.profile.config_overrides.get("PRACTICE_MODE", "curriculum")
-
-        if practice_mode == "curriculum":
-            lesson = LESSONS[self.profile.current_lesson_index]
-            # Curriculum mode: evaluate lesson requirements
-            target_acc = lesson["target_acc"]
-            target_wpm = lesson["target_wpm"]
+        profile = self.profile
 
         if not self.profile:
             return f"TIME: {timer_str} | WPM: {wpm} | ACC: {acc}% | [bold red]AWAITING PROFILE...[/]"
 
+        practice_mode = profile.config_overrides.get("PRACTICE_MODE", "curriculum")
+
+        curriculum_target_text = ""
+        if practice_mode == "curriculum":
+            lesson = LESSONS[self.profile.current_lesson_index]
+            target_acc = lesson["target_acc"]
+            target_wpm = lesson["target_wpm"]
+            curriculum_target_text += (
+                f"TGT ACC: {target_acc} | TGT WPM: {target_wpm}" or ""
+            )
+
         mode_display = self._get_mode_display()
-        return f"MODE: {mode_display} | TIME: {timer_str} | WPM: {wpm} | ACC: {acc}% | TGT ACC: {target_acc} | TGT WPM: {target_wpm}"
+
+        _status_text = (
+            f"MODE: {mode_display} | TIME: {timer_str} | WPM: {wpm} | ACC: {acc}%"
+        )
+
+        if curriculum_target_text:
+            _status_text += f" | {curriculum_target_text}"
+
+        return _status_text
 
     def _get_mode_display(self) -> str:
         """Get the display string for the current practice mode.
