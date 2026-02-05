@@ -6,7 +6,7 @@ for managing user progress and configuration.
 import json
 import os
 from dataclasses import dataclass, asdict, field
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from platformdirs import user_data_dir, user_config_dir
 from collections import namedtuple
 
@@ -53,13 +53,17 @@ INITIAL_PROFILE_OVERRIDES: Dict[str, Any] = {
 
 def load_global_config() -> Dict[str, Any]:
     """Load the global configuration from the user's config directory."""
-    if os.path.exists(GLOBAL_CONFIG_PATH):
-        try:
-            with open(GLOBAL_CONFIG_PATH, "r") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            return {}
-    return {}
+    if not os.path.exists(CONFIG_DIR):
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+    if not os.path.exists(GLOBAL_CONFIG_PATH):
+        with open(GLOBAL_CONFIG_PATH, "w") as f:
+            json.dump(DEFAULT_CONFIG, f, indent=4)
+        return DEFAULT_CONFIG.copy()
+    try:
+        with open(GLOBAL_CONFIG_PATH, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
 
 
 GLOBAL_CONFIG: Dict[str, Any] = load_global_config()
@@ -111,7 +115,50 @@ class UserProfile:
         merged = DEFAULT_CONFIG.copy()
         merged.update(GLOBAL_CONFIG)
         merged.update(self.config_overrides)
+        if not merged.get("AI_API_KEY"):
+            try:
+                api_type, api_key, model, endpoint = self.get_ai_api_key()
+                merged["AI_API_TYPE"] = api_type
+                merged["AI_API_KEY"] = api_key
+                merged["AI_MODEL"] = model
+                merged["AI_ENDPOINT"] = endpoint
+            except Exception:
+                pass
         return merged
+
+    def get_ai_api_key(self) -> Tuple[Any, ...]:
+        """Retrieves the API key for a specified AI service from the environment variables.
+        Returns:
+            Tuple[str, str, str, str, str]: Tuple containing the API type, api key, model name, and endpoint
+        """
+        AI_VARS = namedtuple("AI_VARS", ["type", "key", "model", "endpoint"])
+
+        AI_ENV_VARS: Tuple[AI_VARS, ...] = (
+            AI_VARS(
+                "openai",
+                "OPENAI_API_KEY",
+                "gpt-5-nano",
+                "https://api.openai.com/v1/chat/completions",
+            ),
+            AI_VARS(
+                "deepseek",
+                "DEEPSEEK_API_KEY",
+                "deepseek-chat",
+                "https://api.deepseek.com/v1/chat/completions",
+            ),
+            AI_VARS(
+                "gemini",
+                "GEMINI_API_KEY",
+                "gemini-2.5-flash-lite",
+                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+            ),
+            AI_VARS("ollama", "OLLAMA_API_KEY", "ollama-7b", "http://localhost:8000"),
+        )
+
+        for var in AI_ENV_VARS:
+            if os.environ.get(var.key):
+                return (var.type, os.environ[var.key], var.model, var.endpoint)
+        return ()
 
     def save(self) -> None:
         """Save the user profile to disk.
