@@ -676,7 +676,9 @@ class ProfileSelectScreen(Screen):
         lst = self.query_one("#profile-list")
         await lst.clear()
         for p in UserProfile.list_profiles():
-            lst.append(ListItem(Label(p.capitalize()), id=p))
+            lst.append(
+                ListItem(Label(p.title()), id=p.strip().lower().replace(" ", "_"))
+            )
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle new profile creation.

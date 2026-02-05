@@ -172,7 +172,7 @@ class UserProfile:
         """
         if not os.path.exists(PROFILES_DIR):
             os.makedirs(PROFILES_DIR)
-        path = os.path.join(PROFILES_DIR, f"{self.name.lower()}.json")
+        path = os.path.join(PROFILES_DIR, f"{self.name.lower().replace(' ', '_')}.json")
         with open(path, "w") as f:
             json.dump(asdict(self), f, indent=4)
 
@@ -213,7 +213,7 @@ class UserProfile:
         if not os.path.exists(PROFILES_DIR):
             return []
         return [
-            f.replace(".json", "")
+            f.replace(".json", "").replace("_", " ")
             for f in os.listdir(PROFILES_DIR)
             if f.endswith(".json")
         ]
